@@ -1,0 +1,36 @@
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  whatsapp-gateway:
+    build:
+      context: ./services/whatsapp-gateway
+    env_file:
+      - ./.env
+    ports:
+      - "${WHATSAPP_PORT:-3001}:3001"
+    volumes:
+      - ./services/whatsapp-gateway/.data:/app/.data
+    restart: unless-stopped
+
+  agent-core:
+    build:
+      context: ./services/agent-core
+    env_file:
+      - ./.env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "${AGENT_PORT:-8000}:8000"
+    volumes:
+      - ./.data/agent-core:/app/.data/agent-core
+      - ./config:/app/config:ro
+    restart: unless-stopped
+    depends_on:
+      - redis
+      - whatsapp-gateway

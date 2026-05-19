@@ -1,0 +1,30 @@
+{
+  "metadata": {
+    "version": 1,
+    "description": "Optional channel access and behavior policy for the agent core."
+  },
+  "whatsapp": {
+    "enabled": true,
+    "allowed_chat_ids": [],
+    "blocked_chat_ids": []
+  },
+  "telegram": {
+    "enabled": true,
+    "allowed_chat_ids": [],
+    "blocked_chat_ids": []
+  },
+  "behavior": {
+    "allow_auto_reply": true,
+    "allowed_commands": [
+      "/help",
+      "/status",
+      "/channels",
+      "/memory",
+      "/echo",
+      "/capabilities",
+      "/note",
+      "/todo",
+      "/summary"
+    ]
+  }
+}

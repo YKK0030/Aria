@@ -1,6 +1,11 @@
 # Dynamic Tools
 
-Add Python files here to expose new LangChain/LangGraph tools to the agent.
+Add one small Python file here for each local Agno tool.
+
+Each tool should expose a typed `run(...)` function and a useful docstring.
+Validate inputs, use timeouts for external calls, and return safe errors.
+Sensitive tools require approval. External service-owned tools belong behind
+FastMCP instead of this folder.
 
 Minimum format:
 
@@ -18,4 +23,3 @@ Optional:
 - `async def arun(...)`: async version
 
 The agent reloads tools automatically when files in this folder change.
-

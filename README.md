@@ -1,4 +1,8 @@
-# Multi-Channel Agent Backend
+# Aria — Multi-Channel AI Agent
+
+> **Development status:** Aria is under active development. WhatsApp,
+> Telegram, model, memory, and tool integrations should be tested in your own
+> environment before production use.
 
 This repository is scaffolded as a two-service backend:
 
@@ -131,11 +135,19 @@ docker compose up --build
 - Graph linking: each chat message sequence is linked, and inbound/outbound pairs are linked with a `response` edge
 - Tool-aware retrieval: the model can choose whether to use graph memory, so long-term memory does not always consume extra context tokens
 
+## Durable secondary brain: Attic
+
+Aria uses [Attic](https://github.com/YKK0030/attic) as the planned durable
+memory layer. Keep Redis for short-term conversation context; use Attic for
+facts, preferences, decisions, documents, summaries, and cross-channel memory.
+
+Integration guide: [docs/attic-integration.md](docs/attic-integration.md).
+
 ## Dynamic Tools
 
-- Put Python files inside [tools/README.md](D:\tp\tools\README.md) format under the repo-root `tools/` folder
+- Put one typed Python tool file under the repo-root [tools/](tools/) folder
 - Tools are auto-discovered and exposed to the agent
-- The example tool is [hello_tool.py](D:\tp\tools\hello_tool.py)
+- The example tool is [hello_tool.py](tools/hello_tool.py)
 - This is the extension point you can use later for backend actions, internal APIs, automation, and utility scripts
 
 ## Built-in commands

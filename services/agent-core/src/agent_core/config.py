@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     groq_complex_model: str = Field(default="llama-3.3-70b-versatile", alias="GROQ_COMPLEX_MODEL")
     groq_complex_message_length: int = Field(default=280, alias="GROQ_COMPLEX_MESSAGE_LENGTH")
     groq_complex_history_threshold: int = Field(default=6, alias="GROQ_COMPLEX_HISTORY_THRESHOLD")
-    agent_name: str = Field(default="OpsBridge", alias="AGENT_NAME")
+    agent_name: str = Field(default="Aria", alias="AGENT_NAME")
     system_prompt: str = Field(
         default="You are a multi-channel operations copilot. Be concise and helpful.",
         alias="SYSTEM_PROMPT",
@@ -55,6 +55,10 @@ class Settings(BaseSettings):
     )
     long_term_memory_top_k: int = Field(default=5, alias="LONG_TERM_MEMORY_TOP_K")
     tools_dir: str = Field(default="tools", alias="TOOLS_DIR")
+    attic_enabled: bool = Field(default=False, alias="ATTIC_ENABLED")
+    attic_mcp_url: str = Field(default="http://localhost:4100/mcp", alias="ATTIC_MCP_URL")
+    attic_api_key: str = Field(default="", alias="ATTIC_API_KEY")
+    attic_namespace: str = Field(default="aria:personal", alias="ATTIC_NAMESPACE")
 
     @property
     def allowed_telegram_chat_ids(self) -> set[int]:

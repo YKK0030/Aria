@@ -17,6 +17,7 @@ from agent_core.tooling import dynamic_tool_registry
 from agent_core.tooling.delegation import create_delegation_tool
 from agent_core.tooling.proposals import tool_proposals
 from agent_core.tooling.code_changes import code_changes
+from agent_core.tooling.internal_api import create_internal_api_tool
 from agent_core.tooling.workspace import workspace
 from agent_core.storage import store
 from agent_core.skills import skill_manager
@@ -289,6 +290,12 @@ class AgentRuntime:
             )
 
         available_tools = [memory_tool, *dynamic_tool_registry.get_agno_tools()]
+        if settings.has_admin_api_key:
+            available_tools.append(create_internal_api_tool({
+                "channel": event.channel,
+                "chat_id": event.chat_id,
+                "message_id": event.message_id,
+            }))
 
         def list_available_skills() -> str:
             """List installed Aria skill packs, their purpose, and whether they are active for this request."""

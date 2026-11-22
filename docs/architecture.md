@@ -42,6 +42,7 @@ Agno agent
 | FastAPI | Internal channel webhooks, health, lifecycle |
 | FastMCP | External assistant/tool boundary |
 | Agno | Agent execution, tool calls, approvals |
+| Internal API tool | Read-only status, capabilities, tool registry, and scheduled-job APIs |
 | Valkey (Redis protocol) | Last four turns and TTL context |
 | Aria SQLite | Conversation history, graph edges, audit logs |
 | Attic | Durable facts, preferences, decisions, notes, documents |
@@ -54,6 +55,7 @@ Agno agent
 - No multi-agent team until one agent is insufficient.
 - No automatic storage of every conversation in Attic.
 - No tool that bypasses approval for sensitive actions.
+- Internal API tools call only allowlisted read routes; they do not expose history or mutation APIs.
 
 ## Memory rule
 

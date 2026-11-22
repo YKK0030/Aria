@@ -1,0 +1,214 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2000 2180" role="img" aria-labelledby="title desc">
+  <title id="title">Aria runtime and feature flow</title>
+  <desc id="desc">A top-to-bottom flow diagram separating live message handling, feature sidecars, background jobs, and shared state.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f7f8f4"/><stop offset="1" stop-color="#e9efe8"/></linearGradient>
+    <linearGradient id="main" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#eaf3ec"/><stop offset="1" stop-color="#dcebe0"/></linearGradient>
+    <linearGradient id="side" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f6eee4"/><stop offset="1" stop-color="#efe2d3"/></linearGradient>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 10 5 0 10Z" fill="#497260"/></marker>
+    <marker id="arrowWarm" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 10 5 0 10Z" fill="#b7784d"/></marker>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="4" stdDeviation="7" flood-color="#19362e" flood-opacity=".08"/></filter>
+    <style>
+      text{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;fill:#203b33}
+      .eyebrow{font-size:16px;font-weight:800;letter-spacing:3px;fill:#b7784d}
+      .title{font-size:51px;font-weight:780;letter-spacing:-1.8px;fill:#173c33}
+      .subtitle{font-size:19px;fill:#61746a}
+      .section{font-size:15px;font-weight:850;letter-spacing:1.8px;fill:#61766b}
+      .head{font-size:17px;font-weight:850;letter-spacing:.8px;fill:#a36543}
+      .name{font-size:23px;font-weight:760;letter-spacing:-.3px}
+      .body{font-size:16px;fill:#53685d}
+      .small{font-size:14px;fill:#6b7b70}
+      .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px;fill:#3d5a4c}
+      .card{fill:#fffefa;stroke:#d8e0d8;stroke-width:1.5;rx:16;filter:url(#shadow)}
+      .maincard{fill:url(#main);stroke:#c7dbcc;stroke-width:1.5;rx:18;filter:url(#shadow)}
+      .bgcard{fill:#f5f1e9;stroke:#e1d5c4;stroke-width:1.5;rx:16;filter:url(#shadow)}
+      .feature{fill:url(#side);stroke:#e5d4c1;stroke-width:1.4;rx:14}
+      .pill{fill:#f7faf6;stroke:#cfdfd2;stroke-width:1}
+      .pilltext{font-size:13px;font-weight:750;fill:#486452}
+      .flow{fill:none;stroke:#497260;stroke-width:3;marker-end:url(#arrow)}
+      .sideflow{fill:none;stroke:#b7784d;stroke-width:2.2;marker-end:url(#arrowWarm)}
+      .crossflow{fill:none;stroke:#9aa99d;stroke-width:2;stroke-dasharray:7 7}
+      .white{fill:#fffefa}
+    </style>
+  </defs>
+  <rect width="2000" height="2500" fill="url(#bg)"/>
+  <circle cx="1930" cy="80" r="190" fill="#dce8db" opacity=".45"/>
+  <text x="64" y="60" class="eyebrow">ARIA · LOW-LEVEL FLOW</text>
+  <text x="64" y="122" class="title">Live requests and background work</text>
+  <text x="64" y="160" class="subtitle">Three separate lanes: user request path, feature sidecars, and scheduled jobs.</text>
+  <rect x="64" y="188" width="1872" height="1" fill="#d4ddd5"/>
+
+  <text x="650" y="225" class="section">LIVE MESSAGE PATH · TOP → BOTTOM</text>
+  <text x="64" y="225" class="section">BACKGROUND LANE</text>
+  <text x="1395" y="225" class="section">FEATURE SIDE FLOWS</text>
+
+  <!-- Background work, independent of an active chat request -->
+  <g>
+    <rect class="bgcard" x="64" y="260" width="440" height="270"/>
+    <text x="92" y="300" class="head">APP STARTUP · main.py lifespan</text>
+    <text x="92" y="340" class="name">Background workers start</text>
+    <text x="92" y="381" class="mono">scheduler.start()</text>
+    <text x="92" y="410" class="mono">background_agent.start(300s)</text>
+    <text x="92" y="439" class="mono">TelegramBotService.start()</text>
+    <text x="92" y="487" class="small">Independent of a user message arriving</text>
+
+    <path d="M284 532V570" class="sideflow"/>
+    <rect class="bgcard" x="64" y="580" width="440" height="315"/>
+    <text x="92" y="620" class="head">SCHEDULED WORK</text>
+    <text x="92" y="661" class="name">Reminder dispatch</text>
+    <text x="92" y="691" class="mono">every 10 seconds</text>
+    <text x="92" y="727" class="body">reminder_store.dispatch_due()</text>
+    <text x="92" y="755" class="body">→ ChannelManager.send()</text>
+    <path d="M92 779H476" class="crossflow"/>
+    <text x="92" y="817" class="body">Memory consolidation · daily 03:00 UTC</text>
+    <text x="92" y="846" class="body">Self-improvement · daily 03:00 UTC</text>
+    <text x="92" y="875" class="mono">consolidation.py · self_improvement.py</text>
+
+    <path d="M284 897V935" class="sideflow"/>
+    <rect class="bgcard" x="64" y="945" width="440" height="240"/>
+    <text x="92" y="985" class="head">BACKGROUND EFFECTS</text>
+    <text x="92" y="1027" class="body">Reminder is sent to its target channel</text>
+    <text x="92" y="1058" class="body">Failures recorded in audit JSONL</text>
+    <text x="92" y="1097" class="mono">.data/agent-core/reminders/*.json</text>
+    <text x="92" y="1139" class="small">Does not block the live request pipeline</text>
+  </g>
+
+  <!-- Main request pipeline -->
+  <g>
+    <rect class="maincard" x="560" y="260" width="800" height="170"/>
+    <text x="592" y="299" class="head">1 · INBOUND CHANNEL</text>
+    <text x="592" y="340" class="name">Web · CLI · Telegram · WhatsApp</text>
+    <text x="592" y="376" class="mono">web_ui.py · tools/aria · integrations/* · WhatsApp gateway</text>
+    <text x="592" y="407" class="small">Slack, Discord, email and MCP adapters also exist</text>
+
+    <path d="M960 430V468" class="flow"/>
+    <rect class="maincard" x="560" y="480" width="800" height="215"/>
+    <text x="592" y="519" class="head">2 · INGRESS / AUTH / DEDUPE</text>
+    <text x="592" y="560" class="mono">POST /chat · POST /webhooks/whatsapp · bot callbacks</text>
+    <text x="592" y="594" class="body">HTTP surfaces validate admin or webhook key</text>
+    <text x="592" y="624" class="body">AgentOrchestrator ignores duplicate message IDs</text>
+    <text x="592" y="661" class="mono">main.py · service.py · policy.py</text>
+
+    <path d="M960 695V733" class="flow"/>
+    <rect class="maincard" x="560" y="745" width="800" height="240"/>
+    <text x="592" y="784" class="head">3 · BUILD REQUEST CONTEXT</text>
+    <text x="592" y="825" class="body">Load scoped short-term turns + retrieve long-term nodes</text>
+    <text x="592" y="855" class="mono">RedisShortTermMemory · SQLiteLongTermGraphMemory</text>
+    <text x="592" y="889" class="body">Select active skills, system prompt, route, model and tools</text>
+    <text x="592" y="919" class="mono">skills/manager.py · prompts/* · config.py</text>
+    <text x="592" y="957" class="small">Attic MCP tools are optional; runtime continues if Attic is unavailable</text>
+
+    <path d="M960 985V1023" class="flow"/>
+    <rect class="maincard" x="560" y="1035" width="800" height="310"/>
+    <text x="592" y="1074" class="head">4 · AGENT / MODEL / TOOL LOOP</text>
+    <text x="592" y="1115" class="name">Agno AgentRuntime → configured model</text>
+    <text x="592" y="1152" class="mono">runtime.py → agent.py → Ollama / Groq / NVIDIA NIM</text>
+    <text x="592" y="1192" class="body">Agent may call the scoped tools assembled for this request</text>
+    <rect class="pill" x="592" y="1212" width="180" height="31" rx="15"/><text x="608" y="1233" class="pilltext">internal API reads</text>
+    <rect class="pill" x="784" y="1212" width="143" height="31" rx="15"/><text x="800" y="1233" class="pilltext">docs search</text>
+    <rect class="pill" x="939" y="1212" width="155" height="31" rx="15"/><text x="955" y="1233" class="pilltext">reminders</text>
+    <rect class="pill" x="1106" y="1212" width="222" height="31" rx="15"/><text x="1122" y="1233" class="pilltext">workspace / generated tools</text>
+    <text x="592" y="1280" class="mono">tooling/* · runtime.py · observability.start_agent_span()</text>
+    <text x="592" y="1317" class="small">Delegation is available on configured NVIDIA path</text>
+
+    <path d="M960 1345V1383" class="flow"/>
+    <rect class="maincard" x="560" y="1395" width="800" height="225"/>
+    <text x="592" y="1434" class="head">5 · RESPONSE / PERSIST / DELIVER</text>
+    <text x="592" y="1475" class="body">Persist inbound/outbound history and audit events</text>
+    <text x="592" y="1505" class="mono">FileStore JSONL · Valkey turns · SQLite graph edges</text>
+    <text x="592" y="1545" class="body">Send response to originating channel (when enabled)</text>
+    <text x="592" y="1582" class="mono">AgentOrchestrator → ChannelManager</text>
+  </g>
+
+  <!-- Feature-specific side flows -->
+  <g>
+    <rect class="feature" x="1400" y="260" width="536" height="205"/>
+    <text x="1425" y="296" class="head">ALLOWLIST CONTROL · ADMIN → INGRESS</text>
+    <text x="1425" y="333" class="mono">GET /admin/allowlists</text>
+    <text x="1425" y="360" class="mono">PUT / DELETE /admin/allowlists/{channel}</text>
+    <text x="1425" y="394" class="body">policy.py → shared override JSON</text>
+    <text x="1425" y="431" class="small">Telegram + WhatsApp checks read live policy</text>
+
+    <rect class="feature" x="1400" y="485" width="536" height="205"/>
+    <text x="1425" y="521" class="head">INTERNAL API READS · AGENT TOOL</text>
+    <text x="1425" y="558" class="mono">read_internal_api(resource)</text>
+    <text x="1425" y="585" class="body">Calls allowlisted admin functions in-process</text>
+    <text x="1425" y="619" class="mono">status · capabilities · tools · scheduled_jobs</text>
+    <text x="1425" y="656" class="small">No mutation; sensitive status fields are removed</text>
+
+    <rect class="feature" x="1400" y="710" width="536" height="205"/>
+    <text x="1425" y="746" class="head">APPROVAL QUEUE · OWNER DECISION</text>
+    <text x="1425" y="783" class="mono">runtime → approvals/*.json</text>
+    <text x="1425" y="810" class="body">Telegram /approvals or admin decision route</text>
+    <text x="1425" y="844" class="mono">pending → approved / rejected / expired</text>
+    <text x="1425" y="881" class="small">Records decision only; does not execute the action</text>
+
+    <rect class="feature" x="1400" y="935" width="536" height="205"/>
+    <text x="1425" y="971" class="head">DOCS / SOP RETRIEVAL · AGENT TOOL</text>
+    <text x="1425" y="1008" class="mono">search_internal_docs(query)</text>
+    <text x="1425" y="1035" class="body">internal_docs.py ranks read-only docs</text>
+    <text x="1425" y="1069" class="mono">docs/**/*.md, *.txt → snippet + line citation</text>
+    <text x="1425" y="1106" class="small">Admin search + reindex routes also available</text>
+
+    <rect class="feature" x="1400" y="1160" width="536" height="205"/>
+    <text x="1425" y="1196" class="head">REMINDERS · TOOL + SCHEDULER</text>
+    <text x="1425" y="1233" class="mono">create · list · cancel_reminder</text>
+    <text x="1425" y="1260" class="body">reminders/*.json → due dispatch every 10s</text>
+    <text x="1425" y="1294" class="mono">none / daily / weekly → ChannelManager.send()</text>
+    <text x="1425" y="1331" class="small">Scheduled work runs outside message handling</text>
+
+    <rect class="feature" x="1400" y="1385" width="536" height="235"/>
+    <text x="1425" y="1421" class="head">OBSERVABILITY · CROSS-CUTTING</text>
+    <text x="1425" y="1458" class="mono">request ID → JSON logs + audit JSONL</text>
+    <text x="1425" y="1485" class="mono">FastAPI / HTTPX + agent spans</text>
+    <text x="1425" y="1519" class="body">Prometheus metrics · /aria-trace</text>
+    <text x="1425" y="1548" class="body">OTLP exporter optional; off by default</text>
+    <text x="1425" y="1587" class="small">Observes the request path; does not drive it</text>
+  </g>
+
+  <!-- Dashed connectors are side effects / visibility, not sequential processing -->
+  <path d="M1360 590H1380V365H1392" class="crossflow"/>
+  <path d="M1360 1175H1380V588H1392" class="crossflow"/>
+  <path d="M1360 1140H1380V813H1392" class="crossflow"/>
+  <path d="M1360 1210H1380V1038H1392" class="crossflow"/>
+  <path d="M1360 1250H1380V1263H1392" class="crossflow"/>
+  <path d="M1360 1490H1380V1500H1392" class="crossflow"/>
+
+  <!-- Shared durable and operational state -->
+  <path d="M960 1620V1660" class="flow"/>
+  <text x="64" y="1695" class="section">SHARED STATE / OPERATIONS · USED ACROSS THE FLOW</text>
+  <g>
+    <rect class="card" x="64" y="1720" width="435" height="270"/>
+    <text x="92" y="1760" class="head">SHORT-TERM MEMORY</text>
+    <text x="92" y="1802" class="name">Valkey</text>
+    <text x="92" y="1838" class="mono">memory/short_term.py</text>
+    <text x="92" y="1881" class="body">Per-channel/chat Redis list</text>
+    <text x="92" y="1912" class="body">Turn limit + TTL</text>
+
+    <rect class="card" x="529" y="1720" width="435" height="270"/>
+    <text x="557" y="1760" class="head">LONG-TERM GRAPH</text>
+    <text x="557" y="1802" class="name">SQLite</text>
+    <text x="557" y="1838" class="mono">memory/long_term.py</text>
+    <text x="557" y="1881" class="body">Scoped nodes + edges</text>
+    <text x="557" y="1912" class="body">Optional Attic MCP tools</text>
+
+    <rect class="card" x="994" y="1720" width="435" height="270"/>
+    <text x="1022" y="1760" class="head">LOCAL RECORDS</text>
+    <text x="1022" y="1802" class="name">FileStore</text>
+    <text x="1022" y="1838" class="mono">history/*.jsonl · audit/*.jsonl</text>
+    <text x="1022" y="1881" class="body">Approval + reminder JSON records</text>
+    <text x="1022" y="1912" class="mono">.data/agent-core/</text>
+
+    <rect class="card" x="1459" y="1720" width="477" height="270"/>
+    <text x="1487" y="1760" class="head">METRICS / TELEMETRY</text>
+    <text x="1487" y="1802" class="name">Prometheus · optional OTLP</text>
+    <text x="1487" y="1838" class="mono">/metrics · /admin/observability</text>
+    <text x="1487" y="1881" class="body">Grafana reads Prometheus</text>
+    <text x="1487" y="1912" class="small">Compose: agent-core, Valkey, Prometheus, Grafana</text>
+  </g>
+
+  <rect x="64" y="2030" width="1872" height="2" fill="#d4ddd5"/>
+  <text x="64" y="2070" class="small">Solid arrows = synchronous request sequence. Dashed connectors = tools, cross-cutting telemetry, or state visibility.</text>
+  <text x="64" y="2100" class="small">Background jobs shown separately: reminder dispatch every 10s; consolidation and self-improvement run daily at 03:00 UTC.</text>
+  <text x="1936" y="2100" text-anchor="end" class="small">ARIA · SOURCE-MAPPED FLOW</text>
+</svg>

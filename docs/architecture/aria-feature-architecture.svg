@@ -1,0 +1,284 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2400 2900" role="img" aria-labelledby="title desc">
+  <title id="title">Aria low-level feature architecture</title>
+  <desc id="desc">A source-mapped architecture poster showing Aria channel ingress, FastAPI routes, orchestration and runtime internals, six feature flows, persistence, and external services.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f6f7f3"/><stop offset="1" stop-color="#e9eee8"/></linearGradient>
+    <linearGradient id="hero" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#183c34"/><stop offset="1" stop-color="#275b4d"/></linearGradient>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 10 5 0 10Z" fill="#4b7564"/></marker>
+    <marker id="arrowGold" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 10 5 0 10Z" fill="#bd8153"/></marker>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="4" stdDeviation="7" flood-color="#19362e" flood-opacity=".08"/></filter>
+    <style>
+      text{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;fill:#203b33}
+      .eyebrow{font-size:16px;font-weight:800;letter-spacing:3px;fill:#bd8153}
+      .title{font-size:52px;font-weight:780;letter-spacing:-1.8px;fill:#173c33}
+      .subtitle{font-size:20px;fill:#61746a}
+      .section{font-size:17px;font-weight:850;letter-spacing:2px;fill:#63766b}
+      .card{fill:#fffefa;stroke:#d8e0d8;stroke-width:1.6;rx:17;filter:url(#shadow)}
+      .dark{fill:url(#hero);stroke:#183c34;stroke-width:1.5;rx:17;filter:url(#shadow)}
+      .head{font-size:17px;font-weight:850;letter-spacing:1px;fill:#a96743}
+      .darkhead{font-size:16px;font-weight:850;letter-spacing:1px;fill:#e6bd93}
+      .name{font-size:23px;font-weight:760;letter-spacing:-.3px}
+      .darkname{font-size:23px;font-weight:760;letter-spacing:-.3px;fill:#fffefa}
+      .body{font-size:17px;fill:#53685d}
+      .small{font-size:15px;fill:#6c7c71}
+      .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:15px;fill:#3d5a4c}
+      .monoLight{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:15px;fill:#dce9df}
+      .flow{fill:none;stroke:#4b7564;stroke-width:3;marker-end:url(#arrow)}
+      .flowGold{fill:none;stroke:#bd8153;stroke-width:2.5;marker-end:url(#arrowGold)}
+      .dash{fill:none;stroke:#aab9ac;stroke-width:2;stroke-dasharray:7 8}
+      .rule{stroke:#e2e7df;stroke-width:1.5}
+      .pill{fill:#edf3ed;stroke:#d7e2d7;stroke-width:1}
+      .pilltext{font-size:14px;font-weight:750;fill:#476451}
+      .featureNum{font-size:15px;font-weight:850;fill:white}
+      .featureTitle{font-size:22px;font-weight:780}
+      .flowLabel{font-size:13px;font-weight:800;letter-spacing:1px;fill:#9e704f}
+      .note{font-size:14px;font-weight:700;fill:#815f45}
+    </style>
+  </defs>
+  <rect width="2400" height="2540" fill="url(#bg)"/>
+  <circle cx="2300" cy="90" r="210" fill="#dce8db" opacity=".48"/>
+  <circle cx="85" cy="2400" r="240" fill="#e1e9dd" opacity=".55"/>
+
+  <text x="64" y="62" class="eyebrow">ARIA · FEATURE ARCHITECTURE · SOURCE MAPPED</text>
+  <text x="64" y="125" class="title">Inside Aria: routes, runtime, and feature flows</text>
+  <text x="64" y="163" class="subtitle">Low-level map of the current repository. Solid arrows show request/data flow; dashed lines show shared dependencies.</text>
+  <rect x="64" y="190" width="2272" height="1" fill="#d4ddd5"/>
+
+  <text x="64" y="231" class="section">01 · CHANNELS AND ROUTE SURFACES</text>
+  <g>
+    <rect class="card" x="64" y="252" width="510" height="250"/>
+    <text x="92" y="290" class="head">WEB / ADMIN</text>
+    <text x="92" y="327" class="name">FastAPI · main.py</text>
+    <text x="92" y="361" class="mono">POST /chat · GET /</text>
+    <text x="92" y="387" class="mono">/dashboard · /command-center</text>
+    <text x="92" y="413" class="mono">/aria-trace · /memory · /metrics/ui</text>
+    <text x="92" y="449" class="body">/chat and /admin/* require admin key</text>
+    <text x="92" y="476" class="small">/ws/live streams metrics snapshots</text>
+
+    <rect class="card" x="604" y="252" width="510" height="250"/>
+    <text x="632" y="290" class="head">LOCAL CLI</text>
+    <text x="632" y="327" class="name">tools/aria → cli.py</text>
+    <text x="632" y="361" class="body">Builds an InboundEvent and calls</text>
+    <text x="632" y="387" class="mono">AgentOrchestrator.process_local_event()</text>
+    <text x="632" y="423" class="body">Local conversation; no HTTP hop</text>
+    <text x="632" y="459" class="small">Voice capture is a separate local surface</text>
+
+    <rect class="card" x="1144" y="252" width="510" height="250"/>
+    <text x="1172" y="290" class="head">TELEGRAM / OTHER ADAPTERS</text>
+    <text x="1172" y="327" class="name">integrations/*</text>
+    <text x="1172" y="361" class="mono">telegram_bot.py · slack_bot.py</text>
+    <text x="1172" y="387" class="mono">discord_bot.py · email_gateway.py</text>
+    <text x="1172" y="423" class="body">Adapter parses event, applies channel checks,</text>
+    <text x="1172" y="449" class="body">then calls the orchestrator callback</text>
+
+    <rect class="card" x="1684" y="252" width="652" height="250"/>
+    <text x="1712" y="290" class="head">WHATSAPP</text>
+    <text x="1712" y="327" class="name">Fastify gateway → FastAPI</text>
+    <text x="1712" y="361" class="mono">POST /webhooks/whatsapp</text>
+    <text x="1712" y="387" class="body">Webhook API key checked before dispatch</text>
+    <text x="1712" y="423" class="mono">services/whatsapp-gateway/</text>
+    <text x="1712" y="459" class="small">WhatsApp container is Compose profile: whatsapp</text>
+  </g>
+  <path d="M319 502V533H1180" class="flow"/><path d="M859 502V533" class="flow"/><path d="M1399 502V533" class="flow"/><path d="M2010 502V533H1220" class="flow"/>
+
+  <text x="64" y="581" class="section">02 · SHARED REQUEST SPINE</text>
+  <g>
+    <rect class="dark" x="64" y="603" width="420" height="330"/>
+    <text x="92" y="643" class="darkhead">A · DEDUPE / DISPATCH</text>
+    <text x="92" y="684" class="darkname">AgentOrchestrator</text>
+    <text x="92" y="713" class="monoLight">service.py</text>
+    <text x="92" y="758" class="body" fill="#e2ece4">Checks duplicate message IDs</text>
+    <text x="92" y="786" class="body" fill="#e2ece4">Calls AgentRuntime.run(event)</text>
+    <text x="92" y="814" class="body" fill="#e2ece4">Persists inbound/outbound history</text>
+    <text x="92" y="842" class="body" fill="#e2ece4">Delivers reply via ChannelManager</text>
+    <text x="92" y="890" class="monoLight">channels.py · storage.py</text>
+
+    <rect class="card" x="514" y="603" width="430" height="330"/>
+    <text x="542" y="643" class="head">B · CONTEXT / POLICY</text>
+    <text x="542" y="684" class="name">AgentRuntime.run()</text>
+    <text x="542" y="713" class="mono">runtime.py</text>
+    <text x="542" y="758" class="body">Loads scoped short-term history</text>
+    <text x="542" y="786" class="body">Retrieves long-term graph nodes</text>
+    <text x="542" y="814" class="body">Checks access / behavior policy</text>
+    <text x="542" y="842" class="body">Selects skills, prompt, model, tools</text>
+    <text x="542" y="890" class="mono">memory/* · policy.py · prompts/*</text>
+
+    <rect class="card" x="974" y="603" width="430" height="330"/>
+    <text x="1002" y="643" class="head">C · AGENT / TOOL LOOP</text>
+    <text x="1002" y="684" class="name">Agno Agent</text>
+    <text x="1002" y="713" class="mono">agent.py · runtime.py</text>
+    <text x="1002" y="758" class="body">Creates model with runtime tools</text>
+    <text x="1002" y="786" class="body">Executes agent.arun(prompt)</text>
+    <text x="1002" y="814" class="body">Captures response + tool names</text>
+    <text x="1002" y="842" class="body">Audits calls and records metrics</text>
+    <text x="1002" y="890" class="mono">tooling/ · skills/ · metrics.py</text>
+
+    <rect class="card" x="1434" y="603" width="430" height="330"/>
+    <text x="1462" y="643" class="head">D · MODEL PROVIDER</text>
+    <text x="1462" y="684" class="name">Configured adapter</text>
+    <text x="1462" y="713" class="mono">agent.py · config.py</text>
+    <rect class="pill" x="1462" y="744" width="106" height="30" rx="15"/><text x="1480" y="765" class="pilltext">Ollama</text>
+    <rect class="pill" x="1581" y="744" width="98" height="30" rx="15"/><text x="1601" y="765" class="pilltext">Groq</text>
+    <rect class="pill" x="1692" y="744" width="136" height="30" rx="15"/><text x="1711" y="765" class="pilltext">NVIDIA NIM</text>
+    <text x="1462" y="814" class="body">Provider selected by MODEL_PROVIDER</text>
+    <text x="1462" y="842" class="body">NVIDIA may add specialist delegation</text>
+    <text x="1462" y="890" class="mono">tooling/delegation.py</text>
+
+    <rect class="card" x="1894" y="603" width="442" height="330"/>
+    <text x="1922" y="643" class="head">E · RESULT / STATE</text>
+    <text x="1922" y="684" class="name">Reply + trace</text>
+    <text x="1922" y="713" class="mono">service.py → channel adapter</text>
+    <text x="1922" y="758" class="body">Reply delivered where supported</text>
+    <text x="1922" y="786" class="body">History → JSONL FileStore</text>
+    <text x="1922" y="814" class="body">Short-term → Valkey</text>
+    <text x="1922" y="842" class="body">Long-term graph → SQLite</text>
+    <text x="1922" y="890" class="mono">.data/agent-core/</text>
+  </g>
+  <path d="M484 768H506" class="flow"/><path d="M944 768H966" class="flow"/><path d="M1404 768H1426" class="flow"/><path d="M1864 768H1886" class="flow"/>
+
+  <text x="64" y="990" class="section">03 · SIX FEATURE FLOWS · ROUTE → IMPLEMENTATION → STATE / EFFECT</text>
+  <text x="2336" y="990" text-anchor="end" class="small">Admin routes require x-admin-api-key</text>
+
+  <!-- Feature 1 -->
+  <g>
+    <rect class="card" x="64" y="1012" width="1120" height="310"/>
+    <circle cx="100" cy="1051" r="18" fill="#a96743"/><text x="95" y="1057" class="featureNum">1</text>
+    <text x="132" y="1058" class="featureTitle">Internal backend read tool</text>
+    <text x="92" y="1096" class="flowLabel">AGENT TOOL</text><text x="92" y="1125" class="mono">read_internal_api(resource)</text>
+    <text x="92" y="1154" class="body">Read-only resources:</text><text x="92" y="1181" class="mono">status · capabilities · tools</text><text x="92" y="1208" class="mono">scheduled_jobs</text>
+    <text x="92" y="1260" class="small">tooling/internal_api.py</text>
+    <path d="M425 1165H476" class="flowGold"/>
+    <text x="500" y="1096" class="flowLabel">IN-PROCESS CALL</text><text x="500" y="1125" class="mono">main.admin_status()</text><text x="500" y="1154" class="mono">admin_capabilities()</text><text x="500" y="1183" class="mono">admin_tools()</text><text x="500" y="1212" class="mono">admin_scheduler_jobs()</text>
+    <text x="500" y="1260" class="small">No loopback HTTP request</text>
+    <path d="M825 1165H872" class="flowGold"/>
+    <text x="894" y="1096" class="flowLabel">RESULT</text><text x="894" y="1125" class="body">Sensitive status fields removed</text><text x="894" y="1154" class="body">Call recorded in audit JSONL</text><text x="894" y="1183" class="mono">internal_api_tool_called</text><text x="894" y="1230" class="small">Tool exists when admin key is set</text>
+  </g>
+
+  <!-- Feature 2 -->
+  <g>
+    <rect class="card" x="1216" y="1012" width="1120" height="310"/>
+    <circle cx="1252" cy="1051" r="18" fill="#a96743"/><text x="1247" y="1057" class="featureNum">2</text>
+    <text x="1284" y="1058" class="featureTitle">Human approval queue</text>
+    <text x="1244" y="1096" class="flowLabel">REQUEST</text><text x="1244" y="1125" class="mono">runtime.py → approval_store.create()</text><text x="1244" y="1154" class="body">Agent proposes sensitive action</text><text x="1244" y="1183" class="body">No action executes at request time</text><text x="1244" y="1260" class="small">Owner identity and expiry recorded</text>
+    <path d="M1577 1165H1628" class="flowGold"/>
+    <text x="1652" y="1096" class="flowLabel">REVIEW SURFACES</text><text x="1652" y="1125" class="mono">Telegram: /approvals</text><text x="1652" y="1154" class="mono">GET /admin/approvals</text><text x="1652" y="1183" class="mono">POST .../{id}/decision</text><text x="1652" y="1260" class="small">Telegram owner check + admin key</text>
+    <path d="M2018 1165H2065" class="flowGold"/>
+    <text x="2087" y="1096" class="flowLabel">PERSISTENCE / AUDIT</text><text x="2087" y="1125" class="mono">approvals/*.json</text><text x="2087" y="1154" class="body">pending → approved / rejected</text><text x="2087" y="1183" class="body">1-day expiry · audit event</text><text x="2087" y="1230" class="note">Decision is recorded; no executor attached</text>
+  </g>
+
+  <!-- Feature 3 -->
+  <g>
+    <rect class="card" x="64" y="1342" width="1120" height="310"/>
+    <circle cx="100" cy="1381" r="18" fill="#a96743"/><text x="95" y="1387" class="featureNum">3</text>
+    <text x="132" y="1388" class="featureTitle">Dynamic channel allowlists</text>
+    <text x="92" y="1426" class="flowLabel">ADMIN ROUTES</text><text x="92" y="1455" class="mono">GET /admin/allowlists</text><text x="92" y="1484" class="mono">PUT /admin/allowlists/{channel}</text><text x="92" y="1513" class="mono">DELETE /admin/allowlists/{channel}</text><text x="92" y="1600" class="small">main.py · key-authenticated</text>
+    <path d="M425 1495H476" class="flowGold"/>
+    <text x="500" y="1426" class="flowLabel">POLICY MODULE</text><text x="500" y="1455" class="mono">policy.py</text><text x="500" y="1484" class="body">Validates IDs and overlaps</text><text x="500" y="1513" class="body">Loads overrides on every check</text><text x="500" y="1570" class="small">Runtime checks telegram / whatsapp</text>
+    <path d="M825 1495H872" class="flowGold"/>
+    <text x="894" y="1426" class="flowLabel">SHARED OVERRIDE</text><text x="894" y="1455" class="mono">.data/agent-core/allowlists/</text><text x="894" y="1484" class="mono">access-policy-overrides.json</text><text x="894" y="1530" class="body">Gateway reads same file read-only</text><text x="894" y="1570" class="small">Hot updates; no restart required</text>
+  </g>
+
+  <!-- Feature 4 -->
+  <g>
+    <rect class="card" x="1216" y="1342" width="1120" height="310"/>
+    <circle cx="1252" cy="1381" r="18" fill="#a96743"/><text x="1247" y="1387" class="featureNum">4</text>
+    <text x="1284" y="1388" class="featureTitle">Recurring reminders</text>
+    <text x="1244" y="1426" class="flowLabel">AGENT / ADMIN</text><text x="1244" y="1455" class="mono">create_reminder()</text><text x="1244" y="1484" class="mono">list_reminders() · cancel_reminder()</text><text x="1244" y="1525" class="mono">/admin/reminders [GET/POST/DELETE]</text><text x="1244" y="1600" class="small">runtime.py · main.py</text>
+    <path d="M1577 1495H1628" class="flowGold"/>
+    <text x="1652" y="1426" class="flowLabel">SCHEDULER</text><text x="1652" y="1455" class="mono">main lifespan → scheduler.py</text><text x="1652" y="1484" class="body">Reminder dispatch every 10 sec</text><text x="1652" y="1513" class="body">recurrence: none / daily / weekly</text><text x="1652" y="1570" class="small">reminders.py selects due jobs</text>
+    <path d="M2018 1495H2065" class="flowGold"/>
+    <text x="2087" y="1426" class="flowLabel">STATE / DELIVERY</text><text x="2087" y="1455" class="mono">reminders/*.json</text><text x="2087" y="1484" class="body">ChannelManager.send()</text><text x="2087" y="1513" class="body">delivery failure → audit JSONL</text><text x="2087" y="1570" class="small">Telegram · WhatsApp · Slack · Discord</text>
+  </g>
+
+  <!-- Feature 5 -->
+  <g>
+    <rect class="card" x="64" y="1672" width="1120" height="310"/>
+    <circle cx="100" cy="1711" r="18" fill="#a96743"/><text x="95" y="1717" class="featureNum">5</text>
+    <text x="132" y="1718" class="featureTitle">Internal docs / SOP retrieval</text>
+    <text x="92" y="1756" class="flowLabel">AGENT TOOL / ADMIN</text><text x="92" y="1785" class="mono">search_internal_docs(query)</text><text x="92" y="1814" class="mono">GET /admin/docs/search</text><text x="92" y="1843" class="mono">POST /admin/docs/reindex</text><text x="92" y="1930" class="small">runtime.py · main.py</text>
+    <path d="M425 1825H476" class="flowGold"/>
+    <text x="500" y="1756" class="flowLabel">READ-ONLY INDEX</text><text x="500" y="1785" class="mono">internal_docs.py</text><text x="500" y="1814" class="body">Markdown / text lexical ranking</text><text x="500" y="1843" class="body">Bounded chunks · skips symlinks</text><text x="500" y="1900" class="small">In-memory index refreshes from file signature</text>
+    <path d="M825 1825H872" class="flowGold"/>
+    <text x="894" y="1756" class="flowLabel">SOURCES / OUTPUT</text><text x="894" y="1785" class="mono">/app/docs:ro</text><text x="894" y="1814" class="body">Repository docs/**/*.md, *.txt</text><text x="894" y="1843" class="body">Snippet + path + line citation</text><text x="894" y="1900" class="small">Docs content treated as untrusted input</text>
+  </g>
+
+  <!-- Feature 6 -->
+  <g>
+    <rect class="card" x="1216" y="1672" width="1120" height="310"/>
+    <circle cx="1252" cy="1711" r="18" fill="#a96743"/><text x="1247" y="1717" class="featureNum">6</text>
+    <text x="1284" y="1718" class="featureTitle">Observability · metrics + traces</text>
+    <text x="1244" y="1756" class="flowLabel">INSTRUMENTATION</text><text x="1244" y="1785" class="mono">metrics_middleware</text><text x="1244" y="1814" class="mono">observability.py · runtime span</text><text x="1244" y="1843" class="body">Request ID + agent trace ID</text><text x="1244" y="1930" class="small">Structured JSON logs to stdout</text>
+    <path d="M1577 1825H1628" class="flowGold"/>
+    <text x="1652" y="1756" class="flowLabel">INSPECTION ROUTES</text><text x="1652" y="1785" class="mono">GET /metrics · /ws/live</text><text x="1652" y="1814" class="mono">GET /admin/metrics/json</text><text x="1652" y="1843" class="mono">GET /admin/observability</text><text x="1652" y="1900" class="small">/aria-trace · /admin/audit</text>
+    <path d="M2018 1825H2065" class="flowGold"/>
+    <text x="2087" y="1756" class="flowLabel">EXPORT / STORAGE</text><text x="2087" y="1785" class="mono">Prometheus scrape</text><text x="2087" y="1814" class="body">OTel FastAPI + HTTPX spans</text><text x="2087" y="1843" class="body">Optional OTLP gRPC exporter</text><text x="2087" y="1900" class="small">Audit JSONL links request_id / trace_id</text>
+  </g>
+
+  <text x="64" y="2030" class="section">04 · GENERATED TOOL / CODE REVIEW LIFECYCLE</text>
+  <g>
+    <rect class="card" x="64" y="2052" width="2272" height="300"/>
+    <text x="92" y="2091" class="head">DRAFT → ISOLATED TEST → INDEPENDENT REVIEW → OWNER APPROVAL → RUNTIME REGISTRY</text>
+    <rect class="pill" x="92" y="2112" width="660" height="202" rx="14"/>
+    <text x="116" y="2148" class="flowLabel">1 · TOOL PROPOSAL</text>
+    <text x="116" y="2178" class="mono">runtime.propose_task_tool()</text>
+    <text x="116" y="2206" class="mono">tooling/proposals.py</text>
+    <text x="116" y="2240" class="body">Source + tests + SHA-256</text>
+    <text x="116" y="2270" class="mono">.data/agent-core/tool-proposals/*.json</text>
+
+    <path d="M772 2210H820" class="flowGold"/>
+    <rect class="pill" x="840" y="2112" width="690" height="202" rx="14"/>
+    <text x="864" y="2148" class="flowLabel">2 · VERIFY SAME REVISION</text>
+    <text x="864" y="2178" class="mono">tool-sandbox profile · network_mode: none</text>
+    <text x="864" y="2206" class="mono">tooling/reviewer.py · tests + review</text>
+    <text x="864" y="2240" class="body">/tested · /review · /revise</text>
+    <text x="864" y="2270" class="small">Hash mismatch or failed checks blocks approval</text>
+
+    <path d="M1550 2210H1598" class="flowGold"/>
+    <rect class="pill" x="1618" y="2112" width="690" height="202" rx="14"/>
+    <text x="1642" y="2148" class="flowLabel">3 · ACTIVATE / CODE REVIEW</text>
+    <text x="1642" y="2178" class="mono">POST /admin/tool-proposals/{id}/approve</text>
+    <text x="1642" y="2206" class="mono">generated-tools/*.py → tooling/loader.py</text>
+    <text x="1642" y="2240" class="body">Registry refreshes for future agent runs</text>
+    <text x="1642" y="2270" class="small">Code changes use separate proposal + reviewer; review does not apply patches</text>
+  </g>
+
+  <text x="64" y="2410" class="section">05 · SHARED STATE, CONFIGURATION, AND RUNTIME SERVICES</text>
+  <g>
+    <rect class="card" x="64" y="2432" width="545" height="340"/>
+    <text x="92" y="2471" class="head">CONVERSATION / AUDIT</text>
+    <text x="92" y="2512" class="name">FileStore</text><text x="92" y="2541" class="mono">storage.py · .data/agent-core/</text>
+    <text x="92" y="2586" class="body">history/*.jsonl</text><text x="92" y="2614" class="body">audit/*.jsonl</text>
+    <text x="92" y="2660" class="small">No prompt text exported as OTel attributes</text>
+    <text x="92" y="2690" class="small">Audit retains detailed event payloads locally</text>
+
+    <rect class="card" x="629" y="2432" width="545" height="340"/>
+    <text x="657" y="2471" class="head">MEMORY</text>
+    <text x="657" y="2512" class="name">Valkey + SQLite graph</text>
+    <text x="657" y="2541" class="mono">memory/short_term.py</text><text x="657" y="2567" class="mono">memory/long_term.py</text>
+    <text x="657" y="2612" class="body">Short-term turns: scoped Redis lists</text><text x="657" y="2640" class="body">Long-term nodes / edges: local SQLite</text>
+    <text x="657" y="2685" class="small">Attic MCP optional: remember / recall / health</text>
+
+    <rect class="card" x="1194" y="2432" width="545" height="340"/>
+    <text x="1222" y="2471" class="head">POLICY / FILE WORKSPACE</text>
+    <text x="1222" y="2512" class="name">Config + local project state</text>
+    <text x="1222" y="2541" class="mono">config.py · .env · config/access-policy.json</text>
+    <text x="1222" y="2586" class="body">Generated tools / skills / proposals</text>
+    <text x="1222" y="2614" class="mono">tooling/ · skills/ · workspace/</text>
+    <text x="1222" y="2660" class="small">Workspace mounted at configured agent path</text>
+    <text x="1222" y="2690" class="small">Docs mounted read-only at /app/docs</text>
+
+    <rect class="card" x="1759" y="2432" width="577" height="340"/>
+    <text x="1787" y="2471" class="head">COMPOSE SERVICES</text>
+    <text x="1787" y="2512" class="name">agent-core · Valkey</text>
+    <text x="1787" y="2541" class="body">Prometheus · Grafana</text>
+    <text x="1787" y="2586" class="body">WhatsApp gateway profile</text>
+    <text x="1787" y="2614" class="body">Tool sandbox profile (network disabled)</text>
+    <text x="1787" y="2660" class="mono">docker-compose.yml</text>
+    <text x="1787" y="2690" class="small">Local ports bound to loopback</text>
+  </g>
+
+  <rect x="64" y="2800" width="2272" height="2" fill="#d4ddd5"/>
+  <text x="64" y="2840" class="small">Configuration entry: services/agent-core/src/agent_core/config.py + environment variables · secrets intentionally omitted.</text>
+  <text x="64" y="2870" class="small">Source folders shown: services/agent-core/src/agent_core/{integrations,memory,tooling,skills,prompts} · routes are registered in main.py.</text>
+  <text x="2336" y="2870" text-anchor="end" class="small">ARIA · LOW-LEVEL VIEW</text>
+</svg>

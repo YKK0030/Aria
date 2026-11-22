@@ -6,6 +6,7 @@ from typing import Any
 from agno.tools import tool as agno_tool
 
 from agent_core.agent import create_agent
+from agent_core.approvals import approval_store
 from agent_core.commands import handle_builtin_command, parse_command
 from agent_core.config import settings
 from agent_core.memory import long_term_memory, short_term_memory
@@ -289,7 +290,32 @@ class AgentRuntime:
                 "they must run isolated tests and explicitly approve it before future use."
             )
 
+        def request_human_approval(action: str, summary: str, details: str) -> str:
+            """Queue a sensitive action for an owner decision; records approval only and performs no action."""
+            request = approval_store.create(
+                action,
+                summary,
+                details,
+                {"channel": event.channel, "chat_id": event.chat_id},
+            )
+            store.append_audit("human_approval_requested", {
+                "approval_id": request["id"], "action": request["action"],
+                "channel": event.channel, "chat_id": event.chat_id,
+            })
+            return (
+                f"Approval request {request['id']} is pending for: {request['summary']}. "
+                "No action was performed. Review it with Telegram /approvals or the authenticated admin approvals API."
+            )
+
         available_tools = [memory_tool, *dynamic_tool_registry.get_agno_tools()]
+        available_tools.append(agno_tool(
+            name="request_human_approval",
+            description=(
+                "Queue a proposed sensitive action for explicit owner approval. Include an action identifier, "
+                "short summary, and exact effects/details. This tool only records a request; it cannot execute "
+                "the action, approve it, or claim it was performed."
+            ),
+        )(request_human_approval))
         if settings.has_admin_api_key:
             available_tools.append(create_internal_api_tool({
                 "channel": event.channel,

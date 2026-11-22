@@ -43,6 +43,7 @@ Agno agent
 | FastMCP | External assistant/tool boundary |
 | Agno | Agent execution, tool calls, approvals |
 | Internal API tool | Read-only status, capabilities, tool registry, and scheduled-job APIs |
+| Approval store | Durable, expiring owner decisions for proposed sensitive actions; records decisions but does not execute actions |
 | Valkey (Redis protocol) | Last four turns and TTL context |
 | Aria SQLite | Conversation history, graph edges, audit logs |
 | Attic | Durable facts, preferences, decisions, notes, documents |

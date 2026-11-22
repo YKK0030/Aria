@@ -14,6 +14,7 @@ from telegram.ext import (
     filters,
 )
 
+from agent_core.approvals import approval_store
 from agent_core.config import settings
 from agent_core.models import TelegramInboundEvent
 from agent_core.storage import store
@@ -44,9 +45,12 @@ class TelegramBotService:
 
         self._app = Application.builder().token(settings.telegram_bot_token).build()
         self._app.add_handler(CommandHandler(
-            ["help", "status", "tools", "pending", "review", "approve", "trace"], self._on_command
+            ["help", "status", "tools", "pending", "review", "approve", "approvals", "trace"], self._on_command
         ))
-        self._app.add_handler(CallbackQueryHandler(self._on_approval, pattern=r"^tool_(approve|cancel):[0-9a-f-]{36}$"))
+        self._app.add_handler(CallbackQueryHandler(
+            self._on_approval,
+            pattern=r"^(?:tool_(?:approve|cancel)|action_(?:approve|reject)):[0-9a-f-]{36}$",
+        ))
         self._app.add_handler(MessageHandler(filters.TEXT, self._on_text))
         await self._app.initialize()
         await self._app.start()
@@ -122,6 +126,7 @@ class TelegramBotService:
                 "/pending — tool drafts and review status\n"
                 "/review NAME — run reviewer after isolated tests pass\n"
                 "/approve NAME — confirm installation of a reviewed tool\n"
+                "/approvals — review pending sensitive-action requests\n"
                 "/trace [30m|2h|1d|today] — requests, agents, tools, and reviews"
             )
         elif command == "status":
@@ -143,6 +148,8 @@ class TelegramBotService:
             await self._review_proposal(update, context.args)
         elif command == "approve":
             await self._request_approval(update, context.args)
+        elif command == "approvals":
+            await self._list_action_approvals(update)
         elif command == "trace":
             await message.reply_text(self._trace_summary(context.args[0] if context.args else "1h"))
 
@@ -238,6 +245,21 @@ class TelegramBotService:
             return
         await query.answer()
         action, proposal_id = query.data.split(":", 1)
+        if action in {"action_approve", "action_reject"}:
+            decision = "approved" if action == "action_approve" else "rejected"
+            try:
+                approval = approval_store.decide(proposal_id, decision, f"telegram:{update.effective_user.id}")
+            except Exception as error:
+                await query.edit_message_text(f"Could not record the decision. {error}")
+                return
+            store.append_audit("human_approval_decided", {
+                "approval_id": proposal_id, "action": approval["action"],
+                "decision": decision, "channel": "telegram",
+            })
+            await query.edit_message_text(
+                f"Request {approval['summary']} {decision}. This records owner approval only; no action was executed."
+            )
+            return
         if action == "tool_cancel":
             await query.edit_message_text("Approval cancelled; the tool remains inactive.")
             return
@@ -256,6 +278,33 @@ class TelegramBotService:
         await query.edit_message_text(
             f"Approved and installed {installed['name']}. Aria can use it on her next request."
         )
+
+    async def _list_action_approvals(self, update: Update) -> None:
+        message = update.effective_message
+        if not message:
+            return
+        pending = approval_store.list("pending")[:10]
+        if not pending:
+            await message.reply_text("No pending sensitive-action requests.")
+            return
+        for item in pending:
+            if len(item["details"]) > 3500:
+                await message.reply_text(
+                    f"{item['action']}: {item['summary']}\n"
+                    "Details are too long to review safely in Telegram. Inspect the full request and decide "
+                    "through the authenticated admin approvals API. No decision was made."
+                )
+                continue
+            keyboard = InlineKeyboardMarkup([[
+                InlineKeyboardButton("Approve", callback_data=f"action_approve:{item['id']}"),
+                InlineKeyboardButton("Reject", callback_data=f"action_reject:{item['id']}"),
+            ]])
+            await message.reply_text(
+                f"Sensitive action request\n{item['action']}: {item['summary']}\n\n"
+                f"Details: {item['details']}\nRequested via: {item['requested_by']['channel']}\n"
+                "Approval records authorization only; it does not run the action.",
+                reply_markup=keyboard,
+            )
 
     def _is_authorized_owner(self, update: Update) -> bool:
         chat, user = update.effective_chat, update.effective_user

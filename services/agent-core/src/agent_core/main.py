@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from agent_core.approvals import approval_store
 from agent_core.commands import capabilities_text
 from agent_core.config import settings
 from agent_core.memory import long_term_memory, short_term_memory
@@ -67,6 +68,16 @@ class StatusResponse(BaseModel):
     long_term_memory_db_path: str
     tools_dir: str
     policy: dict
+
+
+class ApprovalDecisionRequest(BaseModel):
+    decision: str
+
+
+class ApprovalCreateRequest(BaseModel):
+    action: str
+    summary: str
+    details: str
 
 
 orchestrator = AgentOrchestrator()
@@ -308,6 +319,52 @@ async def admin_audit(
 ):
     _verify_admin_api_key(x_admin_api_key)
     return {"ok": True, "events": store.read_audit(limit=limit, channel=channel, chat_id=chat_id)}
+
+
+@app.get("/admin/approvals")
+async def admin_approvals(
+    status: str | None = Query(default=None, pattern="^(pending|approved|rejected|expired)$"),
+    x_admin_api_key: str = Header(default=""),
+):
+    _verify_admin_api_key(x_admin_api_key)
+    return {"ok": True, "approvals": approval_store.list(status)}
+
+
+@app.post("/admin/approvals")
+async def admin_create_approval(
+    payload: ApprovalCreateRequest,
+    x_admin_api_key: str = Header(default=""),
+):
+    _verify_admin_api_key(x_admin_api_key)
+    approval = approval_store.create(
+        payload.action, payload.summary, payload.details,
+        {"channel": "admin_api", "chat_id": "owner"},
+    )
+    store.append_audit("human_approval_requested", {
+        "approval_id": approval["id"], "action": approval["action"], "channel": "admin_api",
+    })
+    return {"ok": True, "approval": approval}
+
+
+@app.get("/admin/approvals/{approval_id}")
+async def admin_get_approval(approval_id: str, x_admin_api_key: str = Header(default="")):
+    _verify_admin_api_key(x_admin_api_key)
+    return {"ok": True, "approval": approval_store.get(approval_id)}
+
+
+@app.post("/admin/approvals/{approval_id}/decision")
+async def admin_decide_approval(
+    approval_id: str,
+    payload: ApprovalDecisionRequest,
+    x_admin_api_key: str = Header(default=""),
+):
+    _verify_admin_api_key(x_admin_api_key)
+    approval = approval_store.decide(approval_id, payload.decision, "admin_api")
+    store.append_audit("human_approval_decided", {
+        "approval_id": approval_id, "action": approval["action"],
+        "decision": approval["status"], "channel": "admin_api",
+    })
+    return {"ok": True, "approval": approval}
 
 
 @app.get("/admin/memory/short-term")

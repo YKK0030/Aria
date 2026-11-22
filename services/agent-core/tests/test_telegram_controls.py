@@ -52,6 +52,62 @@ class TelegramControlTests(IsolatedAsyncioTestCase):
         message.reply_text.assert_awaited_once()
         self.assertIn("independent review", message.reply_text.await_args.args[0])
 
+    async def test_action_approval_callback_requires_owner_and_only_records_decision(self) -> None:
+        query = SimpleNamespace(
+            data="action_approve:00000000-0000-0000-0000-000000000001",
+            answer=AsyncMock(),
+            edit_message_text=AsyncMock(),
+        )
+        update = SimpleNamespace(
+            callback_query=query,
+            effective_chat=SimpleNamespace(type="private", id=123),
+            effective_user=SimpleNamespace(id=123),
+        )
+        approval = {"id": "00000000-0000-0000-0000-000000000001", "action": "send_message", "summary": "Send update"}
+        with (
+            patch.object(settings, "telegram_allowed_chat_ids", "123"),
+            patch("agent_core.integrations.telegram_bot.approval_store.decide", return_value=approval) as decide,
+            patch("agent_core.integrations.telegram_bot.store.append_audit") as audit,
+        ):
+            await self.bot._on_approval(update, SimpleNamespace())
+        decide.assert_called_once_with(approval["id"], "approved", "telegram:123")
+        audit.assert_called_once()
+        query.edit_message_text.assert_awaited_once()
+        self.assertIn("no action was executed", query.edit_message_text.await_args.args[0].lower())
+
+    async def test_action_approval_callback_rejects_non_owner(self) -> None:
+        query = SimpleNamespace(
+            data="action_reject:00000000-0000-0000-0000-000000000001",
+            answer=AsyncMock(),
+            edit_message_text=AsyncMock(),
+        )
+        update = SimpleNamespace(
+            callback_query=query,
+            effective_chat=SimpleNamespace(type="group", id=123),
+            effective_user=SimpleNamespace(id=123),
+        )
+        with (
+            patch.object(settings, "telegram_allowed_chat_ids", "123"),
+            patch("agent_core.integrations.telegram_bot.approval_store.decide") as decide,
+        ):
+            await self.bot._on_approval(update, SimpleNamespace())
+        decide.assert_not_called()
+        query.answer.assert_awaited_once()
+
+    async def test_telegram_does_not_offer_approval_when_details_would_be_truncated(self) -> None:
+        message = SimpleNamespace(reply_text=AsyncMock())
+        update = SimpleNamespace(effective_message=message)
+        request = {
+            "id": "00000000-0000-0000-0000-000000000001",
+            "action": "send_message", "summary": "Send long request", "details": "x" * 3600,
+            "requested_by": {"channel": "web"},
+        }
+        with patch("agent_core.integrations.telegram_bot.approval_store.list", return_value=[request]):
+            await self.bot._list_action_approvals(update)
+        message.reply_text.assert_awaited_once()
+        self.assertNotIn("reply_markup", message.reply_text.await_args.kwargs)
+        self.assertIn("No decision was made", message.reply_text.await_args.args[0])
+
     async def test_notifications_go_only_to_allowlisted_chats(self) -> None:
         send_message = AsyncMock()
         self.bot._app = SimpleNamespace(bot=SimpleNamespace(send_message=send_message))

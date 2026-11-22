@@ -2,8 +2,6 @@
   <title id="title">Aria low-level feature architecture</title>
   <desc id="desc">A source-mapped architecture poster showing Aria channel ingress, FastAPI routes, orchestration and runtime internals, six feature flows, persistence, and external services.</desc>
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f6f7f3"/><stop offset="1" stop-color="#e9eee8"/></linearGradient>
-    <linearGradient id="hero" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#183c34"/><stop offset="1" stop-color="#275b4d"/></linearGradient>
     <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 10 5 0 10Z" fill="#4b7564"/></marker>
     <marker id="arrowGold" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 10 5 0 10Z" fill="#bd8153"/></marker>
     <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="4" stdDeviation="7" flood-color="#19362e" flood-opacity=".08"/></filter>
@@ -13,21 +11,21 @@
       .title{font-size:52px;font-weight:780;letter-spacing:-1.8px;fill:#173c33}
       .subtitle{font-size:20px;fill:#61746a}
       .section{font-size:17px;font-weight:850;letter-spacing:2px;fill:#63766b}
-      .card{fill:#fffefa;stroke:#d8e0d8;stroke-width:1.6;rx:17;filter:url(#shadow)}
-      .dark{fill:url(#hero);stroke:#183c34;stroke-width:1.5;rx:17;filter:url(#shadow)}
+      .card{fill:#ffffff;stroke:#d8e0d8;stroke-width:1.6;rx:17;filter:url(#shadow)}
+      .dark{fill:#ffffff;stroke:#d8e0d8;stroke-width:1.6;rx:17;filter:url(#shadow)}
       .head{font-size:17px;font-weight:850;letter-spacing:1px;fill:#a96743}
-      .darkhead{font-size:16px;font-weight:850;letter-spacing:1px;fill:#e6bd93}
+      .darkhead{font-size:16px;font-weight:850;letter-spacing:1px;fill:#a96743}
       .name{font-size:23px;font-weight:760;letter-spacing:-.3px}
-      .darkname{font-size:23px;font-weight:760;letter-spacing:-.3px;fill:#fffefa}
+      .darkname{font-size:23px;font-weight:760;letter-spacing:-.3px;fill:#203b33}
       .body{font-size:17px;fill:#53685d}
       .small{font-size:15px;fill:#6c7c71}
       .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:15px;fill:#3d5a4c}
-      .monoLight{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:15px;fill:#dce9df}
+      .monoLight{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:15px;fill:#3d5a4c}
       .flow{fill:none;stroke:#4b7564;stroke-width:3;marker-end:url(#arrow)}
       .flowGold{fill:none;stroke:#bd8153;stroke-width:2.5;marker-end:url(#arrowGold)}
       .dash{fill:none;stroke:#aab9ac;stroke-width:2;stroke-dasharray:7 8}
       .rule{stroke:#e2e7df;stroke-width:1.5}
-      .pill{fill:#edf3ed;stroke:#d7e2d7;stroke-width:1}
+      .pill{fill:#ffffff;stroke:#d7e2d7;stroke-width:1}
       .pilltext{font-size:14px;font-weight:750;fill:#476451}
       .featureNum{font-size:15px;font-weight:850;fill:white}
       .featureTitle{font-size:22px;font-weight:780}
@@ -35,9 +33,7 @@
       .note{font-size:14px;font-weight:700;fill:#815f45}
     </style>
   </defs>
-  <rect width="2400" height="2540" fill="url(#bg)"/>
-  <circle cx="2300" cy="90" r="210" fill="#dce8db" opacity=".48"/>
-  <circle cx="85" cy="2400" r="240" fill="#e1e9dd" opacity=".55"/>
+  <rect width="2400" height="2900" fill="#ffffff"/>
 
   <text x="64" y="62" class="eyebrow">ARIA · FEATURE ARCHITECTURE · SOURCE MAPPED</text>
   <text x="64" y="125" class="title">Inside Aria: routes, runtime, and feature flows</text>

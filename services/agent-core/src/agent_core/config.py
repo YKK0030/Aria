@@ -62,6 +62,9 @@ class Settings(BaseSettings):
     default_reply_enabled: bool = Field(default=True, alias="DEFAULT_REPLY_ENABLED")
     agent_data_dir: str = Field(default=".data/agent-core", alias="AGENT_DATA_DIR")
     access_policy_file: str = Field(default="config/access-policy.json", alias="ACCESS_POLICY_FILE")
+    access_policy_overrides_file: str = Field(
+        default=".data/agent-core/allowlists/access-policy-overrides.json", alias="ACCESS_POLICY_OVERRIDES_FILE"
+    )
     max_history_messages: int = Field(default=10, alias="MAX_HISTORY_MESSAGES")
     enable_audit_logging: bool = Field(default=True, alias="ENABLE_AUDIT_LOGGING")
     enable_commands: bool = Field(default=True, alias="ENABLE_COMMANDS")
@@ -133,6 +136,11 @@ class Settings(BaseSettings):
     @property
     def resolved_access_policy_file(self) -> Path:
         policy_file = Path(self.access_policy_file)
+        return policy_file if policy_file.is_absolute() else REPO_ROOT / policy_file
+
+    @property
+    def resolved_access_policy_overrides_file(self) -> Path:
+        policy_file = Path(self.access_policy_overrides_file)
         return policy_file if policy_file.is_absolute() else REPO_ROOT / policy_file
 
     @property

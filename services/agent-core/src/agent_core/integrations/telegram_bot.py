@@ -17,6 +17,7 @@ from telegram.ext import (
 from agent_core.approvals import approval_store
 from agent_core.config import settings
 from agent_core.models import TelegramInboundEvent
+from agent_core.policy import policy
 from agent_core.storage import store
 from agent_core.tracing import trace_summary
 from agent_core.tooling.proposals import tool_proposals
@@ -90,7 +91,13 @@ class TelegramBotService:
             return
 
         allowed_ids = settings.allowed_telegram_chat_ids
-        if not allowed_ids or update.effective_chat.id not in allowed_ids:
+        telegram_policy = policy.load().get("telegram", {})
+        if telegram_policy.get("allowlist_managed"):
+            allowed_chat_ids = set(telegram_policy.get("allowed_chat_ids", []))
+            is_allowed = str(update.effective_chat.id) in allowed_chat_ids
+        else:
+            is_allowed = bool(allowed_ids) and update.effective_chat.id in allowed_ids
+        if not is_allowed:
             return
 
         text = update.effective_message.text or ""

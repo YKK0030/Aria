@@ -62,7 +62,12 @@ class AgentRuntime:
             not channel_policy.get("enabled", True)
             or event.chat_id in set(channel_policy.get("blocked_chat_ids", []))
             or (
-                channel_policy.get("allowed_chat_ids")
+                channel_policy.get("allowlist_managed")
+                and event.chat_id not in set(channel_policy.get("allowed_chat_ids", []))
+            )
+            or (
+                not channel_policy.get("allowlist_managed")
+                and channel_policy.get("allowed_chat_ids")
                 and event.chat_id not in set(channel_policy["allowed_chat_ids"])
             )
         ):

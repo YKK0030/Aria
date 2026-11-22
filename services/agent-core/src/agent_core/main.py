@@ -9,7 +9,7 @@ from uuid import uuid4
 from fastapi import FastAPI, Header, HTTPException, Query, Request, WebSocket
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from agent_core.approvals import approval_store
 from agent_core.commands import capabilities_text
@@ -78,6 +78,11 @@ class ApprovalCreateRequest(BaseModel):
     action: str
     summary: str
     details: str
+
+
+class AllowlistUpdateRequest(BaseModel):
+    allowed_chat_ids: list[str] = Field(default_factory=list, max_length=1000)
+    blocked_chat_ids: list[str] = Field(default_factory=list, max_length=1000)
 
 
 orchestrator = AgentOrchestrator()
@@ -319,6 +324,61 @@ async def admin_audit(
 ):
     _verify_admin_api_key(x_admin_api_key)
     return {"ok": True, "events": store.read_audit(limit=limit, channel=channel, chat_id=chat_id)}
+
+
+@app.get("/admin/allowlists")
+async def admin_allowlists(x_admin_api_key: str = Header(default="")):
+    _verify_admin_api_key(x_admin_api_key)
+    access_policy = policy.load()
+    return {
+        "ok": True,
+        "allowlists": {
+            channel: {
+                "managed": bool(access_policy[channel].get("allowlist_managed", False)),
+                "allowed_chat_ids": access_policy[channel].get("allowed_chat_ids", []),
+                "blocked_chat_ids": access_policy[channel].get("blocked_chat_ids", []),
+            }
+            for channel in ("telegram", "whatsapp")
+        },
+    }
+
+
+@app.put("/admin/allowlists/{channel}")
+async def admin_update_allowlist(
+    channel: str,
+    payload: AllowlistUpdateRequest,
+    x_admin_api_key: str = Header(default=""),
+):
+    _verify_admin_api_key(x_admin_api_key)
+    try:
+        updated = policy.update_allowlist(channel, payload.allowed_chat_ids, payload.blocked_chat_ids)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    store.append_audit("allowlist_updated", {
+        "channel": channel,
+        "allowed_count": len(updated["allowed_chat_ids"]),
+        "blocked_count": len(updated["blocked_chat_ids"]),
+    })
+    return {
+        "ok": True,
+        "allowlist": {
+            "channel": channel,
+            "managed": True,
+            "allowed_chat_ids": updated["allowed_chat_ids"],
+            "blocked_chat_ids": updated["blocked_chat_ids"],
+        },
+    }
+
+
+@app.delete("/admin/allowlists/{channel}")
+async def admin_reset_allowlist(channel: str, x_admin_api_key: str = Header(default="")):
+    _verify_admin_api_key(x_admin_api_key)
+    try:
+        policy.reset_allowlist(channel)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    store.append_audit("allowlist_reset", {"channel": channel})
+    return {"ok": True, "channel": channel, "managed": False}
 
 
 @app.get("/admin/approvals")

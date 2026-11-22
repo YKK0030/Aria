@@ -112,7 +112,11 @@ def build_graph():
             return state
 
         allowed_chat_ids = set(channel_policy.get("allowed_chat_ids", []))
-        if allowed_chat_ids and event.chat_id not in allowed_chat_ids:
+        if channel_policy.get("allowlist_managed") and event.chat_id not in allowed_chat_ids:
+            state["route"] = "blocked"
+            state["should_reply"] = False
+            return state
+        if not channel_policy.get("allowlist_managed") and allowed_chat_ids and event.chat_id not in allowed_chat_ids:
             state["route"] = "blocked"
             state["should_reply"] = False
             return state

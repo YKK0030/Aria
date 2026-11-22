@@ -41,10 +41,13 @@ services:
       context: ./services/whatsapp-gateway
     env_file:
       - ./.env
+    environment:
+      ACCESS_POLICY_OVERRIDES_FILE: /app/.data/allowlists/access-policy-overrides.json
     ports:
       - "127.0.0.1:${WHATSAPP_PORT:-3001}:3001"
     volumes:
       - ./services/whatsapp-gateway/.data:/app/.data
+      - ./.data/agent-core/allowlists:/app/.data/allowlists:ro
     restart: unless-stopped
 
   agent-core:

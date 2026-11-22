@@ -24,6 +24,7 @@ const envSchema = z.object({
   WHATSAPP_ALLOWED_NUMBERS: z.string().default(""),
   WHATSAPP_ALLOWED_GROUP_IDS: z.string().default(""),
   WHATSAPP_ALLOWED_GROUP_NAMES: z.string().default(""),
+  ACCESS_POLICY_OVERRIDES_FILE: z.string().default(".data/allowlists/access-policy-overrides.json"),
   WHATSAPP_PAIRING_NUMBER: z.string().default("")
 });
 

@@ -163,11 +163,13 @@ Integration guide: [docs/attic-integration.md](docs/attic-integration.md).
 - `/todo clear`
 - `/summary`
 
-## Next steps
+## Implemented backend capabilities
 
-- Add tool calling for your internal backend APIs
-- Add human approval routing for sensitive actions
-- Add dynamic allowlist management from admin APIs
-- Add recurring reminders and scheduled jobs
-- Add retrieval over your internal docs or SOPs
-- Add observability with OpenTelemetry and structured event logs
+- Read-only tools for allowlisted internal backend APIs.
+- Owner approval queue for sensitive actions.
+- Dynamic channel allowlist management through authenticated admin APIs.
+- Persistent recurring reminders and scheduled jobs.
+- Search over repository documentation with file and line citations.
+- Structured JSON events, request/trace correlation, and optional OpenTelemetry.
+
+See [observability setup](docs/observability.md) for tracing configuration.

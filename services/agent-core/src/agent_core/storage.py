@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from agent_core.config import settings
+from agent_core.observability import current_request_id, current_trace_id
 
 
 class FileStore:
@@ -62,6 +63,12 @@ class FileStore:
             "event_type": event_type,
             "payload": payload,
         }
+        request_id = current_request_id()
+        trace_id = current_trace_id() or str(payload.get("trace_id") or "")
+        if request_id:
+            record["request_id"] = request_id
+        if trace_id:
+            record["trace_id"] = trace_id
         self._append_jsonl(path, record)
 
     def read_audit(

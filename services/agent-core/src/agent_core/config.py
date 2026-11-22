@@ -26,6 +26,9 @@ class Settings(BaseSettings):
 
     app_env: str = Field(default="development", alias="APP_ENV")
     log_level: str = Field(default="info", alias="LOG_LEVEL")
+    otel_enabled: bool = Field(default=False, alias="OTEL_ENABLED")
+    otel_service_name: str = Field(default="aria-agent-core", alias="OTEL_SERVICE_NAME")
+    otel_exporter_otlp_endpoint: str = Field(default="", alias="OTEL_EXPORTER_OTLP_ENDPOINT")
     host: str = Field(default="0.0.0.0", alias="AGENT_HOST")
     port: int = Field(default=8000, alias="AGENT_PORT")
     aria_channels: str = Field(default="all", alias="ARIA_CHANNELS")

@@ -35,6 +35,7 @@ from agent_core.metrics import (
     record_model_tokens,
     record_model_error,
 )
+from agent_core.observability import emit_event, start_agent_span
 
 
 class AgentRuntime:
@@ -125,15 +126,33 @@ class AgentRuntime:
                         self._system_message(event.text, getattr(event, "voice_mode", False), enable_cot=True),
                     )
                     agent_started = time.perf_counter()
+                    emit_event(
+                        "agent.run.started", channel=event.channel,
+                        model=model_id, route=state["route"],
+                    )
                     store.append_audit("agent_run_started", {
                         **trace_context, "model": model_id, "route": state["route"],
                     })
+                    agent_trace_id = ""
                     try:
-                        response = await agent.arun(self._format_input(event, history, active_project))
+                        with start_agent_span(event.channel, model_id, state["route"]) as span:
+                            try:
+                                response = await agent.arun(self._format_input(event, history, active_project))
+                            finally:
+                                span_context = span.get_span_context()
+                                if span_context.is_valid:
+                                    agent_trace_id = format(span_context.trace_id, "032x")
                     except Exception as error:
+                        duration_ms = round((time.perf_counter() - agent_started) * 1000)
+                        emit_event(
+                            "agent.run.failed", level=40, channel=event.channel,
+                            model=model_id, route=state["route"],
+                            duration_ms=duration_ms, error_type=type(error).__name__,
+                            trace_id=agent_trace_id or None,
+                        )
                         store.append_audit("agent_run_failed", {
                             **trace_context, "model": model_id, "error": type(error).__name__,
-                            "duration_ms": round((time.perf_counter() - agent_started) * 1000),
+                            "duration_ms": duration_ms, "trace_id": agent_trace_id or None,
                         })
                         record_agent_run(event.channel, state["route"], model_id, "error", time.perf_counter() - agent_started)
                         record_model_error(model_id, type(error).__name__)
@@ -141,10 +160,17 @@ class AgentRuntime:
                     response_text = self._response_text(response.content)
                     state["used_tools"] = self._tool_calls(response.tools)
                     duration = time.perf_counter() - agent_started
+                    tool_names = [item.get("name", "tool") for item in state["used_tools"]]
+                    emit_event(
+                        "agent.run.completed", channel=event.channel,
+                        model=model_id, route=state["route"],
+                        duration_ms=round(duration * 1000), tools=tool_names,
+                        trace_id=agent_trace_id or None,
+                    )
                     store.append_audit("agent_run_completed", {
                         **trace_context, "model": model_id,
-                        "tools": [item.get("name", "tool") for item in state["used_tools"]],
-                        "duration_ms": round(duration * 1000),
+                        "tools": tool_names,
+                        "duration_ms": round(duration * 1000), "trace_id": agent_trace_id or None,
                     })
                     record_agent_run(event.channel, state["route"], model_id, "success", duration)
                     # Record tool calls

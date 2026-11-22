@@ -40,6 +40,15 @@ from agent_core.skills import skill_manager
 from agent_core.consolidation import consolidator
 from agent_core.scheduler import scheduler
 from agent_core.metrics import metrics_endpoint, record_http_request
+from agent_core.observability import (
+    configure_logging,
+    configure_tracing,
+    current_request_id,
+    emit_event,
+    reset_request_context,
+    set_request_context,
+    status as observability_status,
+)
 from agent_core.background_agent import background_agent
 from agent_core.triggers import trigger_manager
 from agent_core.vector_memory import get_vector_index, semantic_search, index_document
@@ -101,6 +110,9 @@ mcp_server = create_mcp_server(orchestrator)
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    configure_logging()
+    telemetry = configure_tracing(app)
+    emit_event("observability.started", **telemetry)
     async with mcp_server.session_manager.run():
         await orchestrator.telegram.start()
         # Schedule nightly consolidation
@@ -149,14 +161,28 @@ async def normalize_mcp_path(request, call_next):
 @app.middleware("http")
 async def metrics_middleware(request, call_next):
     start = time.perf_counter()
-    response = await call_next(request)
-    duration = time.perf_counter() - start
-    # Normalize path for metrics (replace IDs with placeholders)
-    path = request.url.path
-    for param in request.path_params.values():
-        path = path.replace(str(param), "{id}")
-    record_http_request(request.method, path, response.status_code, duration)
-    return response
+    tokens = set_request_context(request.headers.get("x-request-id"))
+    try:
+        response = await call_next(request)
+        duration = time.perf_counter() - start
+        path = request.url.path
+        for param in request.path_params.values():
+            path = path.replace(str(param), "{id}")
+        record_http_request(request.method, path, response.status_code, duration)
+        response.headers["x-request-id"] = current_request_id()
+        emit_event(
+            "http.request.completed", method=request.method, path=path,
+            status=response.status_code, duration_ms=round(duration * 1000),
+        )
+        return response
+    except Exception as error:
+        emit_event(
+            "http.request.failed", level=logging.ERROR, method=request.method,
+            path=request.url.path, error_type=type(error).__name__,
+        )
+        raise
+    finally:
+        reset_request_context(tokens)
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -191,6 +217,12 @@ async def admin_metrics_json(x_admin_api_key: str = Header(default="")):
     _verify_admin_api_key(x_admin_api_key)
     from agent_core.metrics import get_metrics_snapshot
     return {"ok": True, "metrics": get_metrics_snapshot()}
+
+
+@app.get("/admin/observability")
+async def admin_observability(x_admin_api_key: str = Header(default="")):
+    _verify_admin_api_key(x_admin_api_key)
+    return {"ok": True, "observability": observability_status()}
 
 
 @app.get("/", response_class=HTMLResponse)

@@ -27,6 +27,7 @@ from agent_core.models import (
     ToolTestResultRequest,
 )
 from agent_core.policy import policy
+from agent_core.reminders import reminder_store
 from agent_core.service import AgentOrchestrator
 from agent_core.storage import store
 from agent_core.tooling import dynamic_tool_registry
@@ -85,6 +86,14 @@ class AllowlistUpdateRequest(BaseModel):
     blocked_chat_ids: list[str] = Field(default_factory=list, max_length=1000)
 
 
+class ReminderCreateRequest(BaseModel):
+    channel: str
+    chat_id: str
+    text: str
+    run_at: str
+    recurrence: str = "none"
+
+
 orchestrator = AgentOrchestrator()
 mcp_server = create_mcp_server(orchestrator)
 
@@ -97,6 +106,11 @@ async def lifespan(_: FastAPI):
         scheduler.add_daily_job("memory_consolidation", consolidator.run_consolidation)
         # Schedule self-improvement pipeline (run every 6 hours)
         scheduler.add_daily_job("self_improvement", pipeline.run_pipeline)
+        scheduler.add_interval_job(
+            "reminder_dispatch",
+            lambda: reminder_store.dispatch_due(orchestrator.channels.send),
+            interval_seconds=10,
+        )
         # Start background agent for proactive actions
         background_task = asyncio.create_task(background_agent.start(interval_seconds=300))
         scheduler_task = asyncio.create_task(scheduler.start())
@@ -802,6 +816,43 @@ async def admin_consolidation_status(x_admin_api_key: str = Header(default="")):
 async def admin_scheduler_jobs(x_admin_api_key: str = Header(default="")):
     _verify_admin_api_key(x_admin_api_key)
     return {"ok": True, "jobs": scheduler.get_next_runs()}
+
+
+@app.get("/admin/reminders")
+async def admin_list_reminders(
+    channel: str | None = Query(default=None, min_length=1, max_length=32),
+    chat_id: str | None = Query(default=None, min_length=1, max_length=128),
+    active_only: bool = Query(default=False),
+    x_admin_api_key: str = Header(default=""),
+):
+    _verify_admin_api_key(x_admin_api_key)
+    return {"ok": True, "reminders": reminder_store.list(channel, chat_id, active_only)}
+
+
+@app.post("/admin/reminders")
+async def admin_create_reminder(
+    payload: ReminderCreateRequest,
+    x_admin_api_key: str = Header(default=""),
+):
+    _verify_admin_api_key(x_admin_api_key)
+    reminder = reminder_store.create(
+        payload.channel, payload.chat_id, payload.text, payload.run_at, payload.recurrence
+    )
+    store.append_audit("reminder_created", {
+        "reminder_id": reminder["id"], "channel": reminder["channel"],
+        "chat_id": reminder["chat_id"], "recurrence": reminder["recurrence"],
+    })
+    return {"ok": True, "reminder": reminder}
+
+
+@app.delete("/admin/reminders/{reminder_id}")
+async def admin_cancel_reminder(reminder_id: str, x_admin_api_key: str = Header(default="")):
+    _verify_admin_api_key(x_admin_api_key)
+    reminder = reminder_store.cancel(reminder_id)
+    store.append_audit("reminder_cancelled", {
+        "reminder_id": reminder_id, "channel": reminder["channel"], "chat_id": reminder["chat_id"],
+    })
+    return {"ok": True, "reminder": reminder}
 
 
 @app.get("/admin/goals")

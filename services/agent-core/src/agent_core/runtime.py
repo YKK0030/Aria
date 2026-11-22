@@ -1,7 +1,7 @@
 import json
 import re
 import time
-from typing import Any
+from typing import Any, Literal
 
 from agno.tools import tool as agno_tool
 
@@ -13,6 +13,7 @@ from agent_core.memory import long_term_memory, short_term_memory
 from agent_core.memory.attic import connect_attic
 from agent_core.models import AgentState, InboundEvent, TelegramInboundEvent
 from agent_core.policy import policy
+from agent_core.reminders import reminder_store
 from agent_core.prompts import build_system_prompt
 from agent_core.tooling import dynamic_tool_registry
 from agent_core.tooling.delegation import create_delegation_tool
@@ -321,6 +322,62 @@ class AgentRuntime:
                 "the action, approve it, or claim it was performed."
             ),
         )(request_human_approval))
+
+        def create_reminder(text: str, run_at: str, recurrence: Literal["none", "daily", "weekly"] = "none") -> str:
+            """Schedule a persistent reminder in this chat; run_at must be ISO 8601 with a timezone."""
+            try:
+                reminder = reminder_store.create(event.channel, event.chat_id, text, run_at, recurrence)
+            except Exception as error:
+                detail = getattr(error, "detail", "The reminder could not be created.")
+                return f"Reminder not created: {detail}"
+            store.append_audit("reminder_created", {
+                "reminder_id": reminder["id"], "channel": event.channel,
+                "chat_id": event.chat_id, "recurrence": recurrence,
+            })
+            return (
+                f"Reminder {reminder['id']} scheduled for {reminder['next_run_at']} UTC "
+                f"({recurrence}). It will be sent to this {event.channel} chat."
+            )
+
+        def list_reminders() -> str:
+            """List this chat's active reminders."""
+            reminders = reminder_store.list(event.channel, event.chat_id, active_only=True)
+            if not reminders:
+                return "No active reminders in this chat."
+            return json.dumps([
+                {key: reminder[key] for key in ("id", "text", "recurrence", "next_run_at")}
+                for reminder in reminders
+            ], ensure_ascii=False)
+
+        def cancel_reminder(reminder_id: str) -> str:
+            """Cancel an active reminder owned by this chat."""
+            try:
+                reminder = reminder_store.cancel(reminder_id, event.channel, event.chat_id)
+            except Exception as error:
+                detail = getattr(error, "detail", "The reminder could not be cancelled.")
+                return f"Reminder not cancelled: {detail}"
+            store.append_audit("reminder_cancelled", {
+                "reminder_id": reminder_id, "channel": event.channel, "chat_id": event.chat_id,
+            })
+            return f"Cancelled reminder {reminder_id}: {reminder['text']}"
+
+        available_tools.extend([
+            agno_tool(
+                name="create_reminder",
+                description=(
+                    "Create a one-time, daily, or weekly reminder for this Telegram, WhatsApp, Slack, or Discord chat. "
+                    "Use an ISO 8601 timestamp with timezone (UTC recommended). Never claim creation unless this succeeds."
+                ),
+            )(create_reminder),
+            agno_tool(
+                name="list_reminders",
+                description="List active reminders for this exact chat and channel.",
+            )(list_reminders),
+            agno_tool(
+                name="cancel_reminder",
+                description="Cancel an active reminder by ID, only within this exact chat and channel.",
+            )(cancel_reminder),
+        ])
         if settings.has_admin_api_key:
             available_tools.append(create_internal_api_tool({
                 "channel": event.channel,

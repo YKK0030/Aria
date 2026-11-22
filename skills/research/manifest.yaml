@@ -1,0 +1,55 @@
+name: research
+version: "1.0.0"
+description: "Research and information gathering - web search, fact-checking, synthesis"
+category: knowledge
+
+activation:
+  keywords:
+    - "research"
+    - "find"
+    - "search"
+    - "lookup"
+    - "investigate"
+    - "compare"
+    - "analyze"
+    - "study"
+    - "explore"
+    - "what is"
+    - "how does"
+    - "why does"
+    - "latest"
+    - "current"
+    - "news"
+    - "paper"
+    - "article"
+  file_extensions: []
+  channels:
+    - "cli"
+    - "web"
+    - "telegram"
+  auto_trigger: true
+
+tools:
+  - web_search
+
+prompts:
+  system: "prompts/system.md"
+  fact_checking: "prompts/fact_checking.md"
+  synthesis: "prompts/synthesis.md"
+  deep_dive: "prompts/deep_dive.md"
+
+models:
+  preferred: "groq_complex"
+  fallback: "groq_simple"
+  temperature: 0.2
+
+config:
+  max_file_size_kb: 50
+  allow_shell: false
+  sandbox_profile: "research"
+
+evals:
+  - "evals/fact_check_bench.jsonl"
+
+dependencies: []
+conflicts: []

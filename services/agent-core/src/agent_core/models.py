@@ -3,7 +3,8 @@ from typing import Literal, NotRequired, TypedDict
 from pydantic import BaseModel, Field
 
 
-Channel = Literal["whatsapp", "telegram"]
+Channel = Literal["whatsapp", "telegram", "mcp", "cli", "web", "slack", "discord", "email"]
+OutboundChannel = Literal["whatsapp", "telegram", "slack", "discord", "email"]
 
 
 class InboundEvent(BaseModel):
@@ -17,6 +18,7 @@ class InboundEvent(BaseModel):
     message_id: str = Field(alias="messageId")
     text: str
     timestamp: int
+    voice_mode: bool = False
 
     model_config = {
         "populate_by_name": True
@@ -36,16 +38,87 @@ class TelegramInboundEvent(BaseModel):
     timestamp: int
 
 
+class SlackInboundEvent(BaseModel):
+    channel: Channel = "slack"
+    channel_id: str
+    sender_id: str
+    from_me: bool = False
+    push_name: str | None = None
+    group_name: str | None = None
+    is_group: bool = False
+    message_id: str
+    text: str
+    timestamp: int
+
+
+class DiscordInboundEvent(BaseModel):
+    channel: Channel = "discord"
+    channel_id: str
+    sender_id: str
+    from_me: bool = False
+    push_name: str | None = None
+    group_name: str | None = None
+    is_group: bool = False
+    message_id: str
+    text: str
+    timestamp: int
+
+
+class EmailInboundEvent(BaseModel):
+    channel: Channel = "email"
+    chat_id: str
+    sender_id: str
+    from_me: bool = False
+    push_name: str | None = None
+    group_name: str | None = None
+    is_group: bool = False
+    message_id: str
+    text: str
+    timestamp: int
+
+
 class OutboundMessage(BaseModel):
-    channel: Channel
+    channel: OutboundChannel
     chat_id: str
     text: str
 
 
 class AdminSendRequest(BaseModel):
-    channel: Channel
+    channel: OutboundChannel
     chat_id: str
     text: str
+
+
+class LocalChatRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=12000)
+    session_id: str = Field(default="default", min_length=1, max_length=128)
+    voice_mode: bool = False
+
+
+class ToolProposalRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=64)
+    description: str = Field(min_length=1, max_length=500)
+    source: str = Field(min_length=1, max_length=24000)
+    tests: list[dict] = Field(min_length=1, max_length=10)
+    replaces_tool: str | None = Field(default=None, min_length=2, max_length=48)
+
+
+class ToolTestResultRequest(BaseModel):
+    sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    test_count: int = Field(ge=1, le=10)
+
+
+class ToolReviewRequest(BaseModel):
+    sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    test_count: int = Field(ge=1, le=10)
+
+
+class ToolRevisionRequest(BaseModel):
+    sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
+class CodeChangeReviewRequest(BaseModel):
+    sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
 
 
 class AgentState(TypedDict):

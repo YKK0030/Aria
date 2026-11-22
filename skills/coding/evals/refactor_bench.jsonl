@@ -1,0 +1,5 @@
+{"task": "extract_function", "description": "Extract duplicated code into a function", "input": "def process_a():\n    x = 1 + 2\n    print(x)\n    y = x * 3\n    return y\n\ndef process_b():\n    x = 1 + 2\n    print(x)\n    z = x + 5\n    return z", "expected_pattern": "def common():"}
+{"task": "remove_dead_code", "description": "Remove unreachable code after return", "input": "def foo():\n    return 1\n    print('unreachable')\n    x = 2", "expected_pattern": "return 1"}
+{"task": "inline_variable", "description": "Inline single-use variable", "input": "def calc():\n    x = 5\n    y = x * 2\n    return y", "expected_pattern": "return 5 * 2"}
+{"task": "simplify_condition", "description": "Simplify boolean condition", "input": "def check(a):\n    if a == True:\n        return True\n    else:\n        return False", "expected_pattern": "return a"}
+{"task": "use_builtin", "description": "Replace manual loop with builtin", "input": "def sum_list(items):\n    total = 0\n    for x in items:\n        total += x\n    return total", "expected_pattern": "return sum(items)"}

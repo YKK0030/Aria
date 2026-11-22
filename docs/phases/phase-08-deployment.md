@@ -5,7 +5,7 @@
 Services:
 
 ```text
-redis
+valkey
 qdrant
 ollama
 attic

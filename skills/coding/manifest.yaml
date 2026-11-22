@@ -1,0 +1,76 @@
+name: coding
+version: "1.0.0"
+description: "Software development assistance - debugging, refactoring, code review, testing"
+category: technical
+
+activation:
+  keywords:
+    - "code"
+    - "debug"
+    - "refactor"
+    - "function"
+    - "class"
+    - "api"
+    - "bug"
+    - "error"
+    - "test"
+    - "implement"
+    - "feature"
+    - "repository"
+    - "repo"
+    - "pull request"
+    - "commit"
+    - "git"
+  file_extensions:
+    - ".py"
+    - ".js"
+    - ".ts"
+    - ".go"
+    - ".rs"
+    - ".java"
+    - ".cpp"
+    - ".c"
+    - ".h"
+    - ".json"
+    - ".yaml"
+    - ".yml"
+    - ".toml"
+    - ".md"
+  channels:
+    - "cli"
+    - "web"
+  auto_trigger: true
+
+tools:
+  - read_aria_source_file
+  - write_workspace_file
+  - workspace_terminal
+  - list_aria_source_files
+  - propose_code_change
+  - propose_task_tool
+  - list_workspace_files
+  - read_workspace_file
+
+prompts:
+  system: "prompts/system.md"
+  debugging: "prompts/debugging.md"
+  refactoring: "prompts/refactoring.md"
+  code_review: "prompts/code_review.md"
+  testing: "prompts/testing.md"
+
+models:
+  preferred: "groq_complex"
+  fallback: "groq_simple"
+  temperature: 0.1
+
+config:
+  max_file_size_kb: 200
+  allow_shell: true
+  sandbox_profile: "coding"
+
+evals:
+  - "evals/bug_fix_bench.jsonl"
+  - "evals/refactor_bench.jsonl"
+
+dependencies: []
+conflicts: []

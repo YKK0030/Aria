@@ -19,7 +19,7 @@ Agno agent
   |       |        |
   |       |        +-- Local Python tools
   |       +----------- Attic MCP: durable memory
-  +------------------- Redis: recent turns
+  +------------------- Valkey: recent turns
         |
         +-- Aria SQLite: history, graph, audit
         |
@@ -42,7 +42,7 @@ Agno agent
 | FastAPI | Internal channel webhooks, health, lifecycle |
 | FastMCP | External assistant/tool boundary |
 | Agno | Agent execution, tool calls, approvals |
-| Redis | Last four turns and TTL context |
+| Valkey (Redis protocol) | Last four turns and TTL context |
 | Aria SQLite | Conversation history, graph edges, audit logs |
 | Attic | Durable facts, preferences, decisions, notes, documents |
 | Qdrant/Ollama | Attic semantic indexing and local embeddings |
@@ -57,7 +57,7 @@ Agno agent
 
 ## Memory rule
 
-Redis answers: “What is happening now?”
+Valkey answers: “What is happening now?”
 
 Attic answers: “What should Aria remember later?”
 

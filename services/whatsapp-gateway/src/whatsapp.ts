@@ -113,9 +113,9 @@ export class WhatsAppGateway {
             chatId,
             senderId,
             fromMe: false,
-            pushName: message.pushName,
+            pushName: message.pushName ?? undefined,
             groupName,
-            isGroup: isJidGroup(chatId),
+            isGroup: Boolean(isJidGroup(chatId)),
             messageId,
             text,
             timestamp: Number(message.messageTimestamp ?? Date.now())

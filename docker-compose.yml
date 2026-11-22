@@ -1,36 +1,92 @@
-version: "3.9"
-
 services:
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
+  valkey:
+    image: valkey/valkey:8-alpine
+    volumes:
+      - valkey-data:/data
     restart: unless-stopped
 
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.0.0
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./config/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
   whatsapp-gateway:
+    profiles: ["whatsapp"]
     build:
       context: ./services/whatsapp-gateway
     env_file:
       - ./.env
     ports:
-      - "${WHATSAPP_PORT:-3001}:3001"
+      - "127.0.0.1:${WHATSAPP_PORT:-3001}:3001"
     volumes:
       - ./services/whatsapp-gateway/.data:/app/.data
     restart: unless-stopped
 
   agent-core:
     build:
-      context: ./services/agent-core
+      context: .
+      dockerfile: services/agent-core/Dockerfile
     env_file:
       - ./.env
+    user: "${ARIA_UID:-1000}:${ARIA_GID:-1000}"
     environment:
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://valkey:6379/0
+      ARIA_CHANNELS: ${ARIA_CHANNELS:-all}
+      ADMIN_API_KEY: ${ADMIN_API_KEY:?Set ADMIN_API_KEY in .env}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
-      - "${AGENT_PORT:-8000}:8000"
+      - "127.0.0.1:${AGENT_PORT:-8001}:8000"
     volumes:
       - ./.data/agent-core:/app/.data/agent-core
       - ./config:/app/config:ro
     restart: unless-stopped
     depends_on:
-      - redis
-      - whatsapp-gateway
+      - valkey
+
+  tool-sandbox:
+    profiles: ["tool-sandbox"]
+    build: ./services/tool-sandbox
+    network_mode: none
+    read_only: true
+    user: "65534:65534"
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 128m
+    cpus: 0.5
+    pids_limit: 32
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m,mode=1777
+
+volumes:
+  valkey-data:
+    external: true
+    name: aria_valkey-data
+  prometheus-data:
+  grafana-data:

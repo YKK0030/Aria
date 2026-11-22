@@ -1,0 +1,11 @@
+.git
+.env
+**/.env
+.data
+**/.data
+**/node_modules
+**/.venv
+**/.venv-*
+**/__pycache__
+workspace
+services/whatsapp-gateway/src/downloads/

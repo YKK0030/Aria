@@ -1,0 +1,34 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'aria-local'
+    environment: 'development'
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'aria-agent-core'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['agent-core:8000']
+        labels:
+          service: 'agent-core'
+          component: 'api'
+
+  - job_name: 'valkey'
+    static_configs:
+      - targets: ['valkey:6379']
+        labels:
+          service: 'valkey'
+          component: 'cache'
+
+  - job_name: 'whatsapp-gateway'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['whatsapp-gateway:3001']
+        labels:
+          service: 'whatsapp-gateway'
+          component: 'gateway'

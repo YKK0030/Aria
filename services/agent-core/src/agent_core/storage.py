@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections import deque
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -62,6 +63,42 @@ class FileStore:
             "payload": payload,
         }
         self._append_jsonl(path, record)
+
+    def read_audit(
+        self, limit: int = 200, channel: str | None = None, chat_id: str | None = None
+    ) -> list[dict[str, Any]]:
+        records = deque(maxlen=max(1, min(limit, 500)))
+        for path in sorted(self.audit_dir.glob("*.jsonl"), reverse=True):
+            try:
+                with path.open("r", encoding="utf-8") as handle:
+                    for line in handle:
+                        try:
+                            record = json.loads(line)
+                        except json.JSONDecodeError:
+                            continue
+                        if not isinstance(record, dict):
+                            continue
+                        if channel and not self._audit_contains(record.get("payload", {}), "channel", channel):
+                            continue
+                        if chat_id and not self._audit_contains(record.get("payload", {}), "chat_id", chat_id):
+                            continue
+                        records.append(record)
+            except OSError:
+                continue
+            if len(records) >= records.maxlen:
+                break
+        return sorted(records, key=lambda record: record.get("ts", ""), reverse=True)
+
+    @classmethod
+    def _audit_contains(cls, value: Any, key: str, expected: str) -> bool:
+        if isinstance(value, dict):
+            return any(
+                (name == key and str(item) == expected) or cls._audit_contains(item, key, expected)
+                for name, item in value.items()
+            )
+        if isinstance(value, list):
+            return any(cls._audit_contains(item, key, expected) for item in value)
+        return False
 
     def _append_jsonl(self, path: Path, payload: dict[str, Any]) -> None:
         try:

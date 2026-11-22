@@ -10,14 +10,14 @@ Attic is Aria’s durable secondary brain:
 WhatsApp / Telegram
         ↓
 Aria agent core
-   ├─ Redis: short-term turns and TTL
+   ├─ Valkey (Redis protocol): short-term turns and TTL
    ├─ Attic: durable facts, decisions, docs, preferences, citations
    └─ tools/channels: actions and delivery
 ```
 
 ## Why use both
 
-- Redis is fast and temporary; it should hold the recent chat window.
+- Valkey is fast and temporary; it should hold the recent chat window.
 - Attic is inspectable, searchable, exportable, tenant-scoped, and durable.
 - Aria should not stuff the whole conversation into every prompt.
 - Attic results carry source and citation metadata so the agent can distinguish
@@ -39,44 +39,76 @@ Attic runs at `http://localhost:4000` with development key `dev-key`.
 
 ## Aria configuration
 
-Add these values to `.env` when Phase 02 is implemented:
+Configure Attic's MCP server with its backend key and namespace:
+
+```env
+ATTIC_API_KEY=dev-key
+ATTIC_MCP_API_KEY=replace-me
+ATTIC_NAMESPACE=aria:personal
+ATTIC_MCP_HOST=0.0.0.0
+```
+
+Install and run the MCP server beside Attic:
+
+```sh
+cd ../Attic/packages/mcp_server
+python3 -m pip install -e .
+ATTIC_URL=http://localhost:4000 \
+ATTIC_API_KEY=dev-key \
+ATTIC_MCP_API_KEY=replace-me \
+ATTIC_NAMESPACE=aria:personal \
+ATTIC_MCP_HOST=0.0.0.0 \
+python3 -m attic_mcp.server
+```
+
+The Aria container reaches this host process at
+`http://host.docker.internal:4100/mcp`.
+
+FastMCP validates HTTP Host/Origin by default. The stock server returned HTTP
+421 for `host.docker.internal:4100`; the current Attic worktree resolves this
+with a narrow `TransportSecuritySettings` allowlist for the Docker host and
+origin. Keep validation enabled. `ATTIC_MCP_HOST=0.0.0.0` only controls the
+bind address; it does not change this security allowlist.
+
+Semantic recall also requires the API's embedding provider to be reachable.
+Host Ollama listens on `127.0.0.1:11434`, which Docker containers cannot reach
+through `host.docker.internal`. The verified test used a temporary `socat`
+forwarder bound only to Docker gateway `172.17.0.1:11434`; remember returned one
+vector and recall returned the saved marker. This forwarder is temporary and
+does not survive reboot. Production needs a managed route bound only to Docker's
+host gateway or an embedding service on a private Compose network.
+
+Set these values in Aria's `.env`:
 
 ```env
 ATTIC_ENABLED=false
-ATTIC_MCP_URL=http://attic-mcp:4100/mcp
-ATTIC_API_KEY=dev-key
-ATTIC_NAMESPACE=aria:personal
+ATTIC_MCP_URL=http://host.docker.internal:4100/mcp
+ATTIC_MCP_API_KEY=replace-me
 ```
-
-Run `attic-mcp` beside Attic and put both services on the same Compose network.
 
 ## Integration shape
 
 Use one small MCP adapter in `agent_core/memory/attic.py`:
 
 ```python
-from agno.tools.mcp import MCPTools
+from agent_core.memory.attic import connect_attic
 
-attic_tools = MCPTools(
-    transport="streamable-http",
-    url=settings.attic_mcp_url,
-    tool_name_prefix="attic",
-    timeout_seconds=10,
-    refresh_connection=True,
-)
+async with connect_attic() as attic_tools:
+    # Pass connected tools to the Agno agent when available.
+    ...
 ```
 
 Recommended Aria flow:
 
-1. Load Redis turns for immediate conversational context.
-2. Recall Attic only for durable facts relevant to the inbound message.
+1. Load Valkey turns for immediate conversational context.
+2. Offer Attic recall only for durable facts relevant to the inbound message.
 3. Mark recalled content as untrusted evidence in the prompt.
 4. After a useful exchange, remember only durable outcomes—not every token.
-5. Include Attic source IDs in summaries and admin inspection views.
+5. Preserve Attic source IDs when returning recalled evidence.
 
 ## Namespace and source conventions
 
-Use a stable namespace per deployment, tenant, or user boundary:
+Set a stable namespace on the Attic MCP server per deployment boundary:
 
 ```text
 aria:user:<user-id>
@@ -94,16 +126,24 @@ aria:tool:<tool-name>
 aria:document:<path>
 ```
 
+The MCP server pins its configured namespace; Aria cannot override it. Use a
+single-user namespace only for a single-user deployment. Multi-user scope needs
+a trusted identity-to-namespace mapping before enabling Attic.
+
 Never store passwords, API keys, session tokens, or raw credentials in either
-Aria or Attic.
+Aria or Attic. The `forget` tool stays unavailable to the agent until Phase 06
+adds approval for destructive actions.
 
 ## Rollout plan
 
-1. Add config values and a disabled-by-default Attic MCP connection.
-2. Keep SQLite as history and audit storage; do not duplicate every message.
-3. Compare recall quality and latency on real conversations.
-4. Make Attic the durable read path after the comparison passes.
-5. Retire duplicate long-term storage only after export and rollback are proven.
+1. Complete: add config and disabled-by-default Attic MCP adapter.
+2. Keep SQLite as history and audit storage; do not duplicate messages in Attic.
+3. Verify `remember`, `recall`, and `health` against a running Attic MCP server;
+   require nonzero vectors and a successful read-back, not merely tool success.
+4. Compare recall quality and latency on real conversations.
+5. Add trusted identity-to-namespace isolation before multi-user enablement.
+6. Expose `forget` after Phase 06 adds destructive-action approval.
+7. Make Attic the durable read path only after quality and rollback checks pass.
 
 ## What Aria should add next
 
@@ -114,11 +154,11 @@ Prioritized improvements:
 3. Structured tool permissions, timeouts, retries, and idempotency keys.
 4. Evaluation fixtures for response quality, memory precision, and prompt
    injection resistance.
-5. OpenTelemetry/structured event tracing across gateway, agent, Redis, and
+5. OpenTelemetry/structured event tracing across gateway, agent, Valkey, and
    Attic.
 6. Scheduled reminders and jobs with explicit user consent.
 7. Attachment/document ingestion into Attic with source citations.
 8. Admin UI for memory review, forget, approval, and audit history.
 
-Do not remove Aria’s Redis short-term layer until Attic-backed retrieval has
+Do not remove Aria’s Valkey short-term layer until Attic-backed retrieval has
 been measured in production-like conversations.

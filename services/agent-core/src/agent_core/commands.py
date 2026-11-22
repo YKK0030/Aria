@@ -42,6 +42,7 @@ def handle_builtin_command(state: AgentState) -> AgentState:
             "/status\n"
             "/channels\n"
             "/memory\n"
+            "/trace [30m|2h|1d|today]\n"
             "/capabilities\n"
             "/echo <text>\n"
             "/note add <text>\n"

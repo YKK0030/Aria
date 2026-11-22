@@ -221,6 +221,29 @@ class SQLiteLongTermGraphMemory:
         except Exception:
             return None
 
+    def delete_node(self, channel: str, chat_id: str, node_id: int) -> bool:
+        try:
+            with self._connect() as connection:
+                row = connection.execute(
+                    "SELECT id FROM memory_nodes WHERE id = ? AND channel = ? AND chat_id = ?",
+                    (node_id, channel, chat_id),
+                ).fetchone()
+                if not row:
+                    return False
+                if self._fts_enabled:
+                    connection.execute("DELETE FROM memory_nodes_fts WHERE rowid = ?", (node_id,))
+                connection.execute(
+                    "DELETE FROM memory_edges WHERE from_node_id = ? OR to_node_id = ?",
+                    (node_id, node_id),
+                )
+                connection.execute(
+                    "DELETE FROM memory_nodes WHERE id = ? AND channel = ? AND chat_id = ?",
+                    (node_id, channel, chat_id),
+                )
+                return True
+        except Exception:
+            return False
+
     def get_chat_graph(self, channel: str, chat_id: str, limit: int = 50) -> dict[str, Any]:
         limit = max(1, min(limit, 200))
         try:

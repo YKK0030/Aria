@@ -1,6 +1,6 @@
 # Aria — Broken Things and Workflow Audit
 
-Audit date: 2026-10-05
+Audit date: 2026-10-19
 
 ## Findings
 
@@ -25,26 +25,28 @@ Audit date: 2026-10-05
 5. **README contains broken links**
    - The dynamic tools links point to `D:\tp\tools\...` instead of repository-relative paths.
 
-6. **Agent container crashes during startup**
-   - The Dockerfile does not copy the root `README.md` and `docker-compose.yml`.
-   - `_find_repo_root()` therefore raises `IndexError` before FastAPI starts.
+6. **Resolved: agent container root discovery**
+   - Root build context now copies `README.md` and `docker-compose.yml`; app import passes in the rebuilt image.
 
-7. **Agent cannot start without a Groq key**
-   - `AgentOrchestrator` constructs `ChatGroq` at import time.
-   - An empty `GROQ_API_KEY` raises `groq.GroqError`, contradicting the documented
-     fallback behavior for built-in commands.
+7. **Resolved: command-only startup without Groq**
+   - Agno model construction is lazy and occurs only for model-backed requests.
+   - Built-in command and fallback smoke checks pass with an empty `GROQ_API_KEY`.
 
-8. **Dynamic tools are absent in the agent image**
-   - The Dockerfile copies only `pyproject.toml` and `src`.
-   - The repo-root `tools/` directory is not copied or mounted, so dynamic tools
-     work locally but not in Docker.
+8. **Resolved: dynamic tools in the agent image**
+   - Root build context copies `tools/`; Agno tool discovery and agent construction pass in the rebuilt image.
 
 ## Verification
 
-- Python source compilation: passed.
-- WhatsApp gateway TypeScript build: failed with 2 errors.
-- Docker Compose validation: failed because `.env` is missing.
+- Python source compilation (`python3 -m compileall -q services/agent-core/src`): passed on 2026-10-19.
+- WhatsApp gateway TypeScript build (`npm --prefix services/whatsapp-gateway run build`): failed with the 2 errors listed above on 2026-10-19.
+- Docker Compose validation (`docker compose config -q`): passed on 2026-10-19 with a temporary empty `.env`; a fresh checkout still needs `.env` because services declare it as `env_file`.
+- Valkey 8 container (`valkey-cli ping`): passed on 2026-10-19 (`PONG`).
 - Automated tests: none found.
+- Agent image build: passed on 2026-10-19 with Agno 2.9.0 and Groq integration installed.
+- Agent app import and Agno dynamic-tool construction: passed in the container on 2026-10-19.
+- LangGraph rollback graph compilation: passed in the container on 2026-10-19.
+- `/help`, `/status`, `/note`, `/todo`, and no-key fallback: passed in the container on 2026-10-19.
+- `/help` with Valkey unavailable: passed in the container on 2026-10-19.
 
 ## Functional requirement matrix
 
@@ -56,28 +58,27 @@ Audit date: 2026-10-05
 | Mark WhatsApp messages read | Blocked | Gateway cannot build/start yet. |
 | Forward WhatsApp events to agent | Blocked | Gateway build fails; agent container also crashes at import. |
 | Telegram polling and chat filtering | Unverified | Code exists; no live bot credentials/test. |
-| Telegram slash commands | Partially verified | Graph `/help` smoke test passed with a valid Groq key. |
-| LangGraph message routing | Partially verified | Graph compiled and command route passed in the container. |
-| Groq reasoning/model routing | Blocked without key; unverified live | Empty key crashes startup; real API call not tested. |
-| Redis short-term memory | Unverified | Code exists; no Redis-backed integration test run. |
+| Telegram slash commands | Partially verified | Agno `/help`, `/status`, `/note`, and `/todo` passed without Groq in the container. |
+| Agno message routing | Partially verified | Built-in command routing, fallback, dynamic tool construction, Valkey-outage behavior, and legacy graph compilation passed in the container. |
+| Groq reasoning/model routing | Unverified live | No Groq API key was available for a real model request. |
+| Valkey short-term memory | Unverified | Valkey responds to `PING`; client read/write integration remains untested. |
 | SQLite long-term graph memory | Passed isolated smoke test | Add/search node succeeded in the agent image. |
 | Notes and todos | Passed isolated smoke test | Add note and add todo succeeded. |
-| Dynamic repo tools | Works locally, broken in Docker | Docker image does not contain or mount `tools/`. |
+| Dynamic repo tools | Passed isolated smoke test | `hello_tool` discovered and accepted by an Agno Agent in Docker. |
 | Duplicate-message protection | Unverified | Code exists; no end-to-end delivery test. |
-| Admin APIs | Blocked in Docker | Agent startup fails before routes are available. |
+| Admin APIs | Unverified | FastAPI app imports in the rebuilt image; authenticated endpoint flow not tested. |
 | Access policy filtering | Unverified | Code/config exists; no route/API integration test. |
 | Audit/history persistence | Unverified | Code exists; no end-to-end test. |
 
 ## Overall result
 
-The workflow is **not working end to end**. The first hard blockers are:
+The workflow is **not working end to end**. Agent container startup, command-only mode, and dynamic tool packaging now work. Remaining blockers include:
 
 1. Fix the WhatsApp gateway TypeScript build.
-2. Fix agent Docker repo-root discovery.
-3. Make Groq initialization optional so command-only mode can start without a key.
-4. Copy or mount `tools/` in the agent container.
+2. Provide a Groq key and run a real model request.
+3. Resolve fresh-checkout `.env` setup and remaining security/configuration findings.
 
-Until those are fixed, WhatsApp → agent → reply cannot be considered functional.
+WhatsApp → agent → reply remains unverified while the gateway build fails.
 
 ## Tomorrow checklist
 

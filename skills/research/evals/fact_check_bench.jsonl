@@ -1,0 +1,5 @@
+{"claim": "Python 3.12 was released in October 2023", "expected_verdict": "True", "key_sources": ["python.org", "release notes"]}
+{"claim": "The Great Wall of China is visible from space with naked eye", "expected_verdict": "False", "key_sources": ["NASA", "astronaut testimony"]}
+{"claim": "Coffee causes dehydration", "expected_verdict": "Mostly False", "key_sources": ["peer-reviewed studies", "meta-analysis"]}
+{"claim": "Bitcoin uses more energy than Argentina", "expected_verdict": "True", "key_sources": ["Cambridge Bitcoin Electricity Consumption Index"]}
+{"claim": "Vitamin C prevents colds", "expected_verdict": "Mixed", "key_sources": ["Cochrane reviews", "clinical trials"]}

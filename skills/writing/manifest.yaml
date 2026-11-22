@@ -1,0 +1,61 @@
+name: writing
+version: "1.0.0"
+description: "Writing assistance - drafting, editing, style, structure, tone"
+category: creative
+
+activation:
+  keywords:
+    - "write"
+    - "draft"
+    - "edit"
+    - "rewrite"
+    - "polish"
+    - "improve"
+    - "tone"
+    - "style"
+    - "structure"
+    - "outline"
+    - "essay"
+    - "article"
+    - "blog"
+    - "email"
+    - "report"
+    - "proposal"
+    - "copy"
+    - "content"
+  file_extensions:
+    - ".md"
+    - ".txt"
+    - ".rst"
+  channels:
+    - "cli"
+    - "web"
+    - "telegram"
+  auto_trigger: true
+
+tools:
+  - write_workspace_file
+  - read_workspace_file
+  - list_workspace_files
+
+prompts:
+  system: "prompts/system.md"
+  editing: "prompts/editing.md"
+  structure: "prompts/structure.md"
+  tone: "prompts/tone.md"
+
+models:
+  preferred: "groq_complex"
+  fallback: "groq_simple"
+  temperature: 0.3
+
+config:
+  max_file_size_kb: 100
+  allow_shell: false
+  sandbox_profile: "writing"
+
+evals:
+  - "evals/style_bench.jsonl"
+
+dependencies: []
+conflicts: []

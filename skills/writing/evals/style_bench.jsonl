@@ -1,0 +1,5 @@
+{"task": "make_concise", "input": "In order to be able to successfully accomplish the task at hand, it is necessary for us to first gather all of the relevant information.", "expected": "To accomplish the task, we must first gather all relevant information."}
+{"task": "active_voice", "input": "The decision was made by the committee to approve the proposal.", "expected": "The committee approved the proposal."}
+{"task": "tone_shift", "input": "You need to fix this bug immediately.", "target_tone": "supportive", "expected": "Could you please take a look at this bug when you have a moment?"}
+{"task": "structure_email", "input": "Hey, about the project. We're behind. Need more people. Can you help?", "expected_structure": ["context", "problem", "ask", "deadline", "thanks"]}
+{"task": "remove_hedge", "input": "I think maybe we should probably consider potentially changing the approach.", "expected": "We should change the approach."}

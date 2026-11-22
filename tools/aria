@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Aria Developer CLI wrapper
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ARIA_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Use the project's Python environment
+PYTHON="${PYTHON:-python3}"
+
+exec "$PYTHON" "$ARIA_ROOT/tools/aria_dev.py" "$@"

@@ -12,17 +12,23 @@
 ## Behavior
 
 ```text
-event → duplicate check → Redis context → Agno agent → response result
+event → duplicate check → Valkey context → Agno agent → response result
 ```
 
 Missing Groq credentials allow built-in commands and fallback replies.
 
 ## Verification
 
-- `/help`, `/status`, `/note`, and `/todo` work without Groq.
-- Normal request works with Groq.
-- Redis failure does not crash the agent.
+- `/help`, `/status`, `/note`, and `/todo` pass in the agent container without Groq.
+- No-key fallback passes; unavailable Valkey does not block `/help`.
+- Agent image builds; FastAPI imports; Agno accepts the repo's dynamic tool; LangGraph rollback compiles.
+- Both channel handlers call the same `AgentRuntime.run` method.
+- Live Groq inference remains unverified because no API key is configured.
 
 ## Exit gate
 
-WhatsApp and Telegram can call one Agno runtime method.
+WhatsApp and Telegram call one Agno runtime method.
+
+## Current status
+
+Complete. Both channel handlers call `AgentRuntime.run`; Docker build and offline smoke checks pass. Live Groq inference and channel end-to-end delivery remain unverified without credentials and a running gateway. Keep LangGraph and its dependencies for rollback until live inference passes.

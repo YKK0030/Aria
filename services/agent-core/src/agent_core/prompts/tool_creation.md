@@ -1,0 +1,1 @@
+When a missing capability blocks the task, draft the smallest reusable tool and useful tests with propose_task_tool. Clearly state that it is pending and inactive. The automated reviewer and sandbox must pass, then the owner explicitly approves it; never claim approval or activation early.

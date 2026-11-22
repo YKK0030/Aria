@@ -7,7 +7,7 @@
 This repository is scaffolded as a two-service backend:
 
 - `services/whatsapp-gateway`: Node.js gateway for WhatsApp session management, filtered inbound events, send APIs, and read receipts.
-- `services/agent-core`: Python FastAPI service using LangChain, LangGraph, and Groq for reasoning, plus Telegram bot integration.
+- `services/agent-core`: Python FastAPI service using Agno and Groq for reasoning, plus Telegram bot integration. The previous LangGraph runtime remains available for rollback.
 - `tools`: repo-root dynamic Python tools directory that auto-loads into the agent
 
 ## What this scaffold already supports
@@ -18,12 +18,13 @@ This repository is scaffolded as a two-service backend:
 - Forwarding inbound WhatsApp events to the Python agent core
 - Telegram bot polling with allowed chat filtering
 - Telegram slash commands now flow through the agent command system
-- LangGraph workflow that can process incoming WhatsApp and Telegram messages
-- Groq-backed LLM integration via `langchain-groq`
+- Channel-neutral Agno runtime for incoming WhatsApp and Telegram messages
+- Groq-backed LLM integration via Agno; `langchain-groq` remains for LangGraph rollback
 - Automatic Groq model routing: `llama-3.1-8b-instant` for simple tasks and `llama-3.3-70b-versatile` for complex tasks
-- Redis-backed short-term memory with the latest 4 turns
+- Valkey-backed short-term memory with the latest 4 turns
 - Local SQLite-backed long-term graph memory with top-5 node retrieval
 - Dynamic repo-root `tools/` loading into the agent toolset
+- Bounded DuckDuckGo search and public-page retrieval through `web_search`
 - Duplicate inbound message protection
 - Built-in agent commands like `/help`, `/status`, `/channels`, `/memory`, and `/echo`
 - Built-in note taking with `/note add|list|clear`
@@ -38,65 +39,59 @@ This repository is scaffolded as a two-service backend:
 ## Architecture
 
 ```text
-WhatsApp <-> Node Gateway (Baileys/Fastify) ---> Agent Core (FastAPI/LangGraph/Groq/Tools)
+WhatsApp <-> Node Gateway (Baileys/Fastify) ---> Agent Core (FastAPI/Agno/Groq/Tools)
                                               ^                          |
 Telegram Bot ---------------------------------|                          v
-                                        Redis Short-Term Memory    SQLite Graph Memory
+                                      Valkey Short-Term Memory    SQLite Graph Memory
 ```
 
 ## Why this split
 
 - Node is a better fit for WhatsApp Web session handling with Baileys.
-- Python is a better fit for LangChain, LangGraph, and future tool-heavy agent workflows.
+- Python is a good fit for Agno and tool-heavy agent workflows.
 - The services communicate through HTTP so we can swap pieces later without rewriting everything.
-- The agent core automatically uses the faster `8b` Groq model for lightweight messages and escalates to `70b` for more complex reasoning.
+- The Agno runtime uses the faster `8b` Groq model for lightweight messages and escalates to `70b` for more complex reasoning.
 - Root `.env` is discovered automatically for local development in both services.
 - SQLite is used for long-term memory because it is local, lightweight, zero-ops, and a better fit than Postgres for this phase.
 
-## Setup
+## Local startup (Linux)
 
-1. Copy `.env.example` to `.env` and fill in the secrets.
-2. Optionally copy `config/access-policy.example.json` to `config/access-policy.json` and customize behavior.
-3. Start everything with one command.
-4. Authenticate WhatsApp by scanning the QR shown by the gateway service, or use pairing if configured.
+Aria runs locally with Docker Compose and Ollama. Start Attic separately if
+you want durable memory; the full setup and stop commands are in
+[docs/local-startup.md](docs/local-startup.md). Attic also has its own
+[startup guide](https://github.com/YKK0030/attic#try-it-in-5-minutes).
 
-## One Command Startup
+On first setup only, copy `.env.example` to `.env` and configure local keys.
+Then choose one or more channels (or `all`):
 
-```powershell
-npm run dev
+```sh
+ollama pull llama3.2
+python3 tools/aria start --channels cli,web,telegram
 ```
 
-That command starts:
+That one command starts the selected background channels and opens CLI. Add
+`--voice` to use voice instead of CLI; choose `--channels web,telegram` for
+background services only. Telegram needs a bot token and allowed chat IDs;
+WhatsApp needs pairing and an allowed number. Open the command centre at
+`http://127.0.0.1:8001/command-center`; see [docs/local-startup.md](docs/local-startup.md).
 
-- Redis
-- WhatsApp gateway
-- Python agent core
+For WhatsApp, pair the gateway and configure an allowed number before sending
+messages. Telegram remains optional and is not needed for local Ollama testing.
+Aria can draft reusable task tools during local CLI/web sessions. `tools review`
+automatically runs sandbox tests and a separate reviewer agent, then asks for
+your approval; see [docs/task-tools.md](docs/task-tools.md).
+For public internet information, ask Aria to search the web or provide a public
+URL to read. Search queries go to DuckDuckGo; page retrieval blocks private/local
+hosts, redirects, non-text content, and responses over 1 MB.
 
-## Local Run
+Task prompts live in `services/agent-core/src/agent_core/prompts/`. Aria selects
+a small task-specific addition (research, coding, writing, or tool creation)
+from the current request; edit the matching prompt file to tune it.
 
-### WhatsApp gateway
-
-```powershell
-cd services/whatsapp-gateway
-npm install
-npm run dev
-```
-
-### Agent core
-
-```powershell
-cd services/agent-core
-python -m venv .venv
-.venv\Scripts\activate
-pip install -e .
-uvicorn agent_core.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-## Docker Compose
-
-```powershell
-docker compose up --build
-```
+Conversation history and audit events are stored locally under
+`.data/agent-core/`. Attic is an optional memory service, not Aria's log store;
+Aria only writes durable memories there when its memory tools are configured
+and used.
 
 ## Important notes
 
@@ -106,11 +101,12 @@ docker compose up --build
 - Telegram is set up in polling mode for now to keep local development simple.
 - Runtime history and audit files are written under `.data/agent-core`.
 - In Docker Compose, agent history and policy config are mounted from the host so they persist across restarts.
-- Redis runs as a short-term memory cache service in Docker Compose.
+- Valkey runs as a short-term memory cache service in Docker Compose.
 
 ## Admin endpoints
 
 - `GET /health`: service health
+- `POST /chat`: submit a prompt to Aria from the authenticated web/API channel
 - `GET /admin/status`: agent configuration and runtime status
 - `POST /admin/messages/send`: manually send a message to WhatsApp or Telegram
 - `GET /admin/history/{channel}/{chat_id}`: inspect recent history for a chat
@@ -129,7 +125,7 @@ docker compose up --build
 
 ## Memory Layers
 
-- Short-term memory: Redis cache with the last 4 turns per chat, injected into the LLM context
+- Short-term memory: Valkey cache with the last 4 turns per chat, injected into the LLM context
 - Long-term memory: local SQLite graph memory storing durable message nodes and edges
 - Retrieval: top 5 long-term nodes are fetched by relevance when the model decides to call the graph-memory tool
 - Graph linking: each chat message sequence is linked, and inbound/outbound pairs are linked with a `response` edge
@@ -138,7 +134,7 @@ docker compose up --build
 ## Durable secondary brain: Attic
 
 Aria uses [Attic](https://github.com/YKK0030/attic) as the planned durable
-memory layer. Keep Redis for short-term conversation context; use Attic for
+memory layer. Keep Valkey for short-term conversation context; use Attic for
 facts, preferences, decisions, documents, summaries, and cross-channel memory.
 
 Integration guide: [docs/attic-integration.md](docs/attic-integration.md).

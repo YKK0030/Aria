@@ -3,7 +3,9 @@ FROM node:22-alpine
 WORKDIR /app
 
 COPY package.json tsconfig.json ./
-RUN npm install
+RUN apk add --no-cache --virtual .npm-build-deps git \
+    && npm install \
+    && apk del .npm-build-deps
 
 COPY src ./src
 

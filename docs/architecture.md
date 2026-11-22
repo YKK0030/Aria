@@ -45,6 +45,7 @@ Agno agent
 | Internal API tool | Read-only status, capabilities, tool registry, and scheduled-job APIs |
 | Approval store | Durable, expiring owner decisions for proposed sensitive actions; records decisions but does not execute actions |
 | Access policy | Authenticated allowlist API persists Telegram/WhatsApp chat rules; the WhatsApp gateway reads its shared read-only policy file |
+| Internal docs search | Read-only lexical retrieval over repository Markdown/text SOPs with source and line citations |
 | Valkey (Redis protocol) | Last four turns and TTL context |
 | Aria SQLite | Conversation history, graph edges, audit logs |
 | Attic | Durable facts, preferences, decisions, notes, documents |

@@ -28,6 +28,7 @@ from agent_core.models import (
 )
 from agent_core.policy import policy
 from agent_core.reminders import reminder_store
+from agent_core.internal_docs import internal_docs
 from agent_core.service import AgentOrchestrator
 from agent_core.storage import store
 from agent_core.tooling import dynamic_tool_registry
@@ -1107,6 +1108,26 @@ async def admin_vector_stats(x_admin_api_key: str = Header(default="")):
     from agent_core.vector_memory import get_vector_index
     index = get_vector_index()
     return {"ok": True, "stats": index.get_stats()}
+
+
+@app.get("/admin/docs/search")
+async def admin_docs_search(
+    query: str = Query(min_length=1, max_length=500),
+    limit: int = Query(default=5, ge=1, le=10),
+    x_admin_api_key: str = Header(default=""),
+):
+    _verify_admin_api_key(x_admin_api_key)
+    results = internal_docs.search(query, limit)
+    store.append_audit("internal_docs_searched", {"channel": "admin_api", "result_count": len(results)})
+    return {"ok": True, "results": results}
+
+
+@app.post("/admin/docs/reindex")
+async def admin_docs_reindex(x_admin_api_key: str = Header(default="")):
+    _verify_admin_api_key(x_admin_api_key)
+    stats = internal_docs.reindex()
+    store.append_audit("internal_docs_reindexed", stats)
+    return {"ok": True, **stats}
 
 
 @app.post("/admin/vector/rebuild")

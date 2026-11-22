@@ -144,6 +144,10 @@ class Settings(BaseSettings):
         return policy_file if policy_file.is_absolute() else REPO_ROOT / policy_file
 
     @property
+    def resolved_docs_dir(self) -> Path:
+        return REPO_ROOT / "docs"
+
+    @property
     def resolved_long_term_memory_db_path(self) -> Path:
         db_path = Path(self.long_term_memory_db_path)
         return db_path if db_path.is_absolute() else REPO_ROOT / db_path

@@ -97,8 +97,8 @@
     <text x="542" y="643" class="head">B · CONTEXT / POLICY</text>
     <text x="542" y="684" class="name">AgentRuntime.run()</text>
     <text x="542" y="713" class="mono">runtime.py</text>
-    <text x="542" y="758" class="body">Loads scoped short-term history</text>
-    <text x="542" y="786" class="body">Retrieves long-term graph nodes</text>
+    <text x="542" y="758" class="body">Loads short-term turns from Valkey</text>
+    <text x="542" y="786" class="body">SQLite graph searched by tool on demand</text>
     <text x="542" y="814" class="body">Checks access / behavior policy</text>
     <text x="542" y="842" class="body">Selects skills, prompt, model, tools</text>
     <text x="542" y="890" class="mono">memory/* · policy.py · prompts/*</text>
@@ -255,8 +255,9 @@
     <text x="657" y="2471" class="head">MEMORY</text>
     <text x="657" y="2512" class="name">Valkey + SQLite graph</text>
     <text x="657" y="2541" class="mono">memory/short_term.py</text><text x="657" y="2567" class="mono">memory/long_term.py</text>
-    <text x="657" y="2612" class="body">Short-term turns: scoped Redis lists</text><text x="657" y="2640" class="body">Long-term nodes / edges: local SQLite</text>
-    <text x="657" y="2685" class="small">Attic MCP optional: remember / recall / health</text>
+    <text x="657" y="2612" class="body">Valkey turns load automatically per chat</text><text x="657" y="2640" class="body">SQLite lookup: graph_memory_search tool</text>
+    <text x="657" y="2685" class="small">Optional Attic MCP: external durable memory</text>
+    <text x="657" y="2710" class="mono">remember · recall · health</text>
 
     <rect class="card" x="1194" y="2432" width="545" height="340"/>
     <text x="1222" y="2471" class="head">POLICY / FILE WORKSPACE</text>

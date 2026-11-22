@@ -28,6 +28,7 @@
       .flow{fill:none;stroke:#497260;stroke-width:3;marker-end:url(#arrow)}
       .sideflow{fill:none;stroke:#b7784d;stroke-width:2.2;marker-end:url(#arrowWarm)}
       .crossflow{fill:none;stroke:#9aa99d;stroke-width:2;stroke-dasharray:7 7}
+      .atticflow{fill:none;stroke:#8c6c8c;stroke-width:2.5;stroke-dasharray:7 7;marker-end:url(#arrow)}
       .white{fill:#fffefa}
     </style>
   </defs>
@@ -92,11 +93,11 @@
     <path d="M960 695V733" class="flow"/>
     <rect class="maincard" x="560" y="745" width="800" height="240"/>
     <text x="592" y="784" class="head">3 · BUILD REQUEST CONTEXT</text>
-    <text x="592" y="825" class="body">Load scoped short-term turns + retrieve long-term nodes</text>
-    <text x="592" y="855" class="mono">RedisShortTermMemory · SQLiteLongTermGraphMemory</text>
+    <text x="592" y="825" class="body">Load short-term turns from Valkey automatically</text>
+    <text x="592" y="855" class="mono">SQLite graph lookup is a graph_memory_search tool call</text>
     <text x="592" y="889" class="body">Select active skills, system prompt, route, model and tools</text>
     <text x="592" y="919" class="mono">skills/manager.py · prompts/* · config.py</text>
-    <text x="592" y="957" class="small">Attic MCP tools are optional; runtime continues if Attic is unavailable</text>
+    <text x="592" y="957" class="small">Attic is optional: the agent can call recall() when durable memory is useful</text>
 
     <path d="M960 985V1023" class="flow"/>
     <rect class="maincard" x="560" y="1035" width="800" height="310"/>
@@ -175,40 +176,49 @@
   <path d="M1360 1490H1380V1500H1392" class="crossflow"/>
 
   <!-- Shared durable and operational state -->
-  <path d="M960 1620V1660" class="flow"/>
-  <text x="64" y="1695" class="section">SHARED STATE / OPERATIONS · USED ACROSS THE FLOW</text>
+  <path d="M960 1620V1702" class="flow"/>
+  <path d="M1360 1255H1380V1676H979V1750" class="atticflow"/>
+  <text x="1010" y="1668" class="small">optional Attic MCP tool call</text>
+  <text x="64" y="1740" class="section">SHARED STATE / OPERATIONS · USED ACROSS THE FLOW</text>
   <g>
-    <rect class="card" x="64" y="1720" width="435" height="270"/>
-    <text x="92" y="1760" class="head">SHORT-TERM MEMORY</text>
-    <text x="92" y="1802" class="name">Valkey</text>
-    <text x="92" y="1838" class="mono">memory/short_term.py</text>
-    <text x="92" y="1881" class="body">Per-channel/chat Redis list</text>
-    <text x="92" y="1912" class="body">Turn limit + TTL</text>
+    <rect class="card" x="64" y="1760" width="350" height="270"/>
+    <text x="86" y="1800" class="head">SHORT-TERM MEMORY</text>
+    <text x="86" y="1842" class="name">Valkey</text>
+    <text x="86" y="1878" class="mono">memory/short_term.py</text>
+    <text x="86" y="1921" class="body">Scoped Redis lists</text>
+    <text x="86" y="1952" class="body">Turn limit + TTL</text>
 
-    <rect class="card" x="529" y="1720" width="435" height="270"/>
-    <text x="557" y="1760" class="head">LONG-TERM GRAPH</text>
-    <text x="557" y="1802" class="name">SQLite</text>
-    <text x="557" y="1838" class="mono">memory/long_term.py</text>
-    <text x="557" y="1881" class="body">Scoped nodes + edges</text>
-    <text x="557" y="1912" class="body">Optional Attic MCP tools</text>
+    <rect class="card" x="434" y="1760" width="350" height="270"/>
+    <text x="456" y="1800" class="head">LOCAL LONG-TERM GRAPH</text>
+    <text x="456" y="1842" class="name">SQLite</text>
+    <text x="456" y="1878" class="mono">memory/long_term.py</text>
+    <text x="456" y="1921" class="body">Scoped nodes + edges</text>
+    <text x="456" y="1952" class="small">graph_memory_search reads it on demand</text>
 
-    <rect class="card" x="994" y="1720" width="435" height="270"/>
-    <text x="1022" y="1760" class="head">LOCAL RECORDS</text>
-    <text x="1022" y="1802" class="name">FileStore</text>
-    <text x="1022" y="1838" class="mono">history/*.jsonl · audit/*.jsonl</text>
-    <text x="1022" y="1881" class="body">Approval + reminder JSON records</text>
-    <text x="1022" y="1912" class="mono">.data/agent-core/</text>
+    <rect class="card" x="804" y="1760" width="350" height="270"/>
+    <text x="826" y="1800" class="head">DURABLE MEMORY · OPTIONAL</text>
+    <text x="826" y="1842" class="name">Attic MCP</text>
+    <text x="826" y="1878" class="mono">memory/attic.py</text>
+    <text x="826" y="1921" class="body">remember · recall · health via MCP</text>
+    <text x="826" y="1952" class="small">Agent can invoke recall when useful</text>
 
-    <rect class="card" x="1459" y="1720" width="477" height="270"/>
-    <text x="1487" y="1760" class="head">METRICS / TELEMETRY</text>
-    <text x="1487" y="1802" class="name">Prometheus · optional OTLP</text>
-    <text x="1487" y="1838" class="mono">/metrics · /admin/observability</text>
-    <text x="1487" y="1881" class="body">Grafana reads Prometheus</text>
-    <text x="1487" y="1912" class="small">Compose: agent-core, Valkey, Prometheus, Grafana</text>
+    <rect class="card" x="1174" y="1760" width="350" height="270"/>
+    <text x="1196" y="1800" class="head">LOCAL RECORDS</text>
+    <text x="1196" y="1842" class="name">FileStore</text>
+    <text x="1196" y="1878" class="mono">history/*.jsonl · audit/*.jsonl</text>
+    <text x="1196" y="1921" class="body">Approval + reminder JSON</text>
+    <text x="1196" y="1952" class="mono">.data/agent-core/</text>
+
+    <rect class="card" x="1544" y="1760" width="392" height="270"/>
+    <text x="1566" y="1800" class="head">METRICS / TELEMETRY</text>
+    <text x="1566" y="1842" class="name">Prometheus · OTLP</text>
+    <text x="1566" y="1878" class="mono">/metrics · /admin/observability</text>
+    <text x="1566" y="1921" class="body">Grafana reads Prometheus</text>
+    <text x="1566" y="1952" class="small">OTLP export is optional</text>
   </g>
 
   <rect x="64" y="2030" width="1872" height="2" fill="#d4ddd5"/>
-  <text x="64" y="2070" class="small">Solid arrows = synchronous request sequence. Dashed connectors = tools, cross-cutting telemetry, or state visibility.</text>
+  <text x="64" y="2070" class="small">Solid arrows = synchronous request sequence. Dashed connectors = tools, external memory calls, or cross-cutting visibility.</text>
   <text x="64" y="2100" class="small">Background jobs shown separately: reminder dispatch every 10s; consolidation and self-improvement run daily at 03:00 UTC.</text>
   <text x="1936" y="2100" text-anchor="end" class="small">ARIA · SOURCE-MAPPED FLOW</text>
 </svg>

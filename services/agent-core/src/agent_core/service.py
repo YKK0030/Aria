@@ -3,6 +3,7 @@ import re
 import time
 
 from agent_core.channels import ChannelManager
+from agent_core.approval_actions import decide_approval, handle_whatsapp_approval_command
 from agent_core.integrations import (
     TelegramBotService,
     EmailGateway,
@@ -42,7 +43,7 @@ _RAW_CODE = re.compile(
 class AgentOrchestrator:
     def __init__(self) -> None:
         self._runtime = AgentRuntime()
-        self.telegram = TelegramBotService(self.process_telegram_event)
+        self.telegram = TelegramBotService(self.process_telegram_event, self.decide_sensitive_approval)
         self.slack = SlackBotService(self.process_slack_event) if SlackBotService else None
         self.discord = DiscordBotService(self.process_discord_event) if DiscordBotService else None
         self.email = EmailGateway(self.process_email_event)
@@ -78,6 +79,9 @@ class AgentOrchestrator:
         self._safe_add_long_term_node(channel, chat_id, "assistant", text)
         store.append_audit("manual_message_sent", {"channel": channel, "chat_id": chat_id, "text": text})
 
+    async def decide_sensitive_approval(self, approval_id: str, decision: str, decided_by: str) -> dict:
+        return await decide_approval(approval_id, decision, decided_by, self.send_manual_message)
+
     def get_history(self, channel: str, chat_id: str, limit: int | None = None) -> list[dict]:
         return store.read_history(channel, chat_id, limit)
 
@@ -106,7 +110,15 @@ class AgentOrchestrator:
 
         runtime_started = time.perf_counter()
         try:
-            result = await self._runtime.run(event)
+            approval_response = (
+                await handle_whatsapp_approval_command(event, self.decide_sensitive_approval)
+                if source == "whatsapp" else None
+            )
+            result = (
+                {"should_reply": True, "response_text": approval_response, "route": "approval"}
+                if approval_response is not None
+                else await self._runtime.run(event)
+            )
         except Exception as error:
             result = {
                 "should_reply": True,

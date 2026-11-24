@@ -69,6 +69,9 @@ the local voice client instead of CLI (web is enabled automatically). The
 WhatsApp Compose profile starts only when WhatsApp is selected. Telegram needs a
 bot token and allowed chat IDs; WhatsApp requires pairing and a non-empty
 `WHATSAPP_ALLOWED_NUMBERS` allowlist.
+To approve actions in WhatsApp, also set your private number in
+`WHATSAPP_OWNER_NUMBERS`; ordinary allowlisting does not grant owner controls.
+Use `/approvals`, then `/approve ID` or `/reject ID` in that private chat.
 
 For Telegram, set both `TELEGRAM_BOT_TOKEN` and your private numeric ID in
 `TELEGRAM_ALLOWED_CHAT_IDS`. Only allowlisted chats can talk to Aria; owner

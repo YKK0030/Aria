@@ -7,13 +7,22 @@ expire after 24 hours. They are separate from conversation memory and are not
 stored in Redis or Attic.
 
 The owner can review pending requests in the allowlisted Telegram direct chat
-with `/approvals`, then approve or reject with the inline buttons. Authenticated
-admin clients can list, inspect, create, and decide requests through
-`/admin/approvals`; every endpoint requires `x-admin-api-key`. Decisions are
-one-time, persisted, and written to the audit log.
+with `/approvals`, then approve or reject with the inline buttons. WhatsApp
+owners can use `/approvals [page]`, `/approve ID`, and `/reject ID` in a private
+chat after setting `WHATSAPP_OWNER_NUMBERS`; ordinary chat allowlisting and
+group access do not grant owner controls. IDs shown in WhatsApp can be entered
+using their eight-character prefix.
 
-An approval record is an authorization decision only. It does not execute a
-command, send a message, modify files, or resume a paused agent run. A sensitive
-action integration must check the matching approved request before performing
-its operation. This keeps approval separate from execution and prevents a
-generic model supplied payload from becoming executable code.
+The `request_outbound_message_approval` tool stores the exact Telegram or
+WhatsApp destination and message. Approval sends that bound message once and
+records success or failure; a failed delivery is not retried automatically.
+Other generic approval requests remain decision-only until an action-specific
+executor is added. Authenticated admin clients can still list, inspect, create,
+and decide requests through `/admin/approvals`; every endpoint requires
+`x-admin-api-key`, and message approvals use the same execution path.
+
+Generic approval records remain decision-only. They do not execute commands,
+modify files, or resume paused agent runs. New executable actions must bind
+their exact parameters to the request and recheck the one-time, unexpired
+decision at execution time; model-supplied free-form details never become
+executable code.

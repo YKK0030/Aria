@@ -52,7 +52,8 @@ def handle_builtin_command(state: AgentState) -> AgentState:
             "/todo list\n"
             "/todo done <id>\n"
             "/todo clear\n"
-            "/summary"
+            "/summary\n"
+            "\nWhatsApp owner approvals: /approvals, /approve ID, /reject ID"
         )
     elif command_name == "/status":
         state["response_text"] = (

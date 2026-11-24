@@ -466,11 +466,9 @@ async def admin_decide_approval(
     x_admin_api_key: str = Header(default=""),
 ):
     _verify_admin_api_key(x_admin_api_key)
-    approval = approval_store.decide(approval_id, payload.decision, "admin_api")
-    store.append_audit("human_approval_decided", {
-        "approval_id": approval_id, "action": approval["action"],
-        "decision": approval["status"], "channel": "admin_api",
-    })
+    approval = await orchestrator.decide_sensitive_approval(
+        approval_id, payload.decision, "admin_api"
+    )
     return {"ok": True, "approval": approval}
 
 

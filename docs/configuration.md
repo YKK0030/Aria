@@ -11,7 +11,7 @@ before starting services.
 |---|---|
 | Runtime | `APP_ENV`, `LOG_LEVEL`, `AGENT_HOST`, `AGENT_PORT`, `ARIA_CHANNELS` |
 | Models | `GROQ_API_KEY`, `GROQ_SIMPLE_MODEL`, `GROQ_COMPLEX_MODEL` |
-| WhatsApp | `WHATSAPP_*` |
+| WhatsApp | `WHATSAPP_*`; `WHATSAPP_OWNER_NUMBERS` separately enables owner-only approvals in private chats |
 | Telegram | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALLOWED_CHAT_IDS` (required allowlist for chat, notifications, and owner controls) |
 | Valkey (Redis protocol) | `REDIS_ENABLED`, `REDIS_URL`, `SHORT_TERM_MEMORY_*` |
 | SQLite | `LONG_TERM_MEMORY_DB_PATH`, `MAX_HISTORY_MESSAGES` |

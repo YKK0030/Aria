@@ -337,7 +337,7 @@ class AgentRuntime:
             })
             return (
                 f"Approval request {request['id']} is pending for: {request['summary']}. "
-                "No action was performed. Review it with Telegram /approvals or the authenticated admin approvals API."
+                "No action was performed. Review it with /approvals in Telegram or WhatsApp, or the authenticated admin API."
             )
 
         available_tools = [memory_tool, *dynamic_tool_registry.get_agno_tools()]
@@ -346,9 +346,42 @@ class AgentRuntime:
             description=(
                 "Queue a proposed sensitive action for explicit owner approval. Include an action identifier, "
                 "short summary, and exact effects/details. This tool only records a request; it cannot execute "
-                "the action, approve it, or claim it was performed."
+                "the action, approve it, or claim it was performed. For outbound Telegram or WhatsApp messages, "
+                "use request_outbound_message_approval so the exact recipient and message are bound to approval."
             ),
         )(request_human_approval))
+
+        def request_outbound_message_approval(
+            channel: Literal["telegram", "whatsapp"], chat_id: str, text: str
+        ) -> str:
+            """Queue one outbound Telegram or WhatsApp message; it is sent only after owner approval."""
+            if not settings.channel_enabled(channel):
+                return f"Approval not created: the {channel} channel is disabled."
+            if not chat_id.strip() or len(chat_id) > 128 or not text.strip() or len(text) > 1000:
+                return "Approval not created: recipient and message are required; message limit is 1000 characters."
+            summary = f"Send {channel} message to {chat_id}"
+            details = f"Channel: {channel}\nRecipient: {chat_id}\nMessage:\n{text}"
+            request = approval_store.create(
+                "send_message", summary, details,
+                {"channel": event.channel, "chat_id": event.chat_id},
+                {"channel": channel, "chat_id": chat_id, "text": text},
+            )
+            store.append_audit("human_approval_requested", {
+                "approval_id": request["id"], "action": request["action"],
+                "channel": event.channel, "chat_id": event.chat_id,
+            })
+            return (
+                f"Message approval {request['id'][:8]} is pending. Nothing was sent. "
+                "Review the exact recipient and message with /approvals in Telegram or WhatsApp."
+            )
+
+        available_tools.append(agno_tool(
+            name="request_outbound_message_approval",
+            description=(
+                "Request owner approval to send one Telegram or WhatsApp message. Supply the exact destination and "
+                "message text. This tool queues the message but never sends it; execution happens only after approval."
+            ),
+        )(request_outbound_message_approval))
 
         def create_reminder(text: str, run_at: str, recurrence: Literal["none", "daily", "weekly"] = "none") -> str:
             """Schedule a persistent reminder in this chat; run_at must be ISO 8601 with a timezone."""

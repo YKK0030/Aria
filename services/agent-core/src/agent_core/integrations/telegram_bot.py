@@ -27,8 +27,9 @@ logger = logging.getLogger(__name__)
 
 
 class TelegramBotService:
-    def __init__(self, event_callback):
+    def __init__(self, event_callback, approval_decider=None):
         self._event_callback = event_callback
+        self._approval_decider = approval_decider
         self._app: Application | None = None
 
     async def start(self) -> None:
@@ -255,17 +256,30 @@ class TelegramBotService:
         if action in {"action_approve", "action_reject"}:
             decision = "approved" if action == "action_approve" else "rejected"
             try:
-                approval = approval_store.decide(proposal_id, decision, f"telegram:{update.effective_user.id}")
+                if self._approval_decider:
+                    approval = await self._approval_decider(
+                        proposal_id, decision, f"telegram:{update.effective_user.id}"
+                    )
+                else:
+                    approval = approval_store.decide(
+                        proposal_id, decision, f"telegram:{update.effective_user.id}"
+                    )
+                    store.append_audit("human_approval_decided", {
+                        "approval_id": proposal_id, "action": approval["action"],
+                        "decision": decision, "channel": "telegram",
+                    })
             except Exception as error:
                 await query.edit_message_text(f"Could not record the decision. {error}")
                 return
-            store.append_audit("human_approval_decided", {
-                "approval_id": proposal_id, "action": approval["action"],
-                "decision": decision, "channel": "telegram",
-            })
-            await query.edit_message_text(
-                f"Request {approval['summary']} {decision}. This records owner approval only; no action was executed."
-            )
+            if approval.get("execution_status") == "succeeded":
+                message = f"Approved and sent the message: {approval['summary']}."
+            elif approval.get("execution_status") == "failed":
+                message = "Approval recorded, but message delivery failed. No automatic retry was made."
+            elif decision == "approved":
+                message = f"Request {approval['summary']} approved. No action was executed; no executable action was attached."
+            else:
+                message = f"Request {approval['summary']} rejected. No action was executed."
+            await query.edit_message_text(message)
             return
         if action == "tool_cancel":
             await query.edit_message_text("Approval cancelled; the tool remains inactive.")
@@ -306,10 +320,16 @@ class TelegramBotService:
                 InlineKeyboardButton("Approve", callback_data=f"action_approve:{item['id']}"),
                 InlineKeyboardButton("Reject", callback_data=f"action_reject:{item['id']}"),
             ]])
+            parameters = item.get("parameters")
+            instruction = (
+                "Approval sends this exact message once."
+                if isinstance(parameters, dict) and parameters.get("channel") in {"telegram", "whatsapp"}
+                else "Approval records a decision only; it does not run the action."
+            )
             await message.reply_text(
                 f"Sensitive action request\n{item['action']}: {item['summary']}\n\n"
                 f"Details: {item['details']}\nRequested via: {item['requested_by']['channel']}\n"
-                "Approval records authorization only; it does not run the action.",
+                f"{instruction}",
                 reply_markup=keyboard,
             )
 

@@ -75,6 +75,33 @@ class TelegramControlTests(IsolatedAsyncioTestCase):
         query.edit_message_text.assert_awaited_once()
         self.assertIn("no action was executed", query.edit_message_text.await_args.args[0].lower())
 
+    async def test_approved_message_callback_uses_execution_service(self) -> None:
+        query = SimpleNamespace(
+            data="action_approve:00000000-0000-0000-0000-000000000001",
+            answer=AsyncMock(),
+            edit_message_text=AsyncMock(),
+        )
+        update = SimpleNamespace(
+            callback_query=query,
+            effective_chat=SimpleNamespace(type="private", id=123),
+            effective_user=SimpleNamespace(id=123),
+        )
+        approval = {
+            "id": "00000000-0000-0000-0000-000000000001",
+            "action": "send_message", "summary": "Send release note", "execution_status": "succeeded",
+        }
+        self.bot._approval_decider = AsyncMock(return_value=approval)
+        with (
+            patch.object(settings, "telegram_allowed_chat_ids", "123"),
+            patch("agent_core.integrations.telegram_bot.approval_store.decide") as legacy_decide,
+        ):
+            await self.bot._on_approval(update, SimpleNamespace())
+        self.bot._approval_decider.assert_awaited_once_with(
+            approval["id"], "approved", "telegram:123"
+        )
+        legacy_decide.assert_not_called()
+        self.assertIn("sent the message", query.edit_message_text.await_args.args[0])
+
     async def test_action_approval_callback_rejects_non_owner(self) -> None:
         query = SimpleNamespace(
             data="action_reject:00000000-0000-0000-0000-000000000001",

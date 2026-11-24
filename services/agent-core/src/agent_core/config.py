@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 from typing import Literal
 
 from pydantic import Field
@@ -54,6 +55,7 @@ class Settings(BaseSettings):
     whatsapp_gateway_url: str = Field(default="http://localhost:3001", alias="WHATSAPP_GATEWAY_URL")
     whatsapp_gateway_api_key: str = Field(default="", alias="WHATSAPP_GATEWAY_API_KEY")
     whatsapp_webhook_api_key: str = Field(default="", alias="WHATSAPP_WEBHOOK_API_KEY")
+    whatsapp_owner_numbers: str = Field(default="", alias="WHATSAPP_OWNER_NUMBERS")
     telegram_bot_token: str = Field(default="", alias="TELEGRAM_BOT_TOKEN")
     telegram_allowed_chat_ids: str = Field(default="", alias="TELEGRAM_ALLOWED_CHAT_IDS")
     slack_bot_token: str = Field(default="", alias="SLACK_BOT_TOKEN")
@@ -110,6 +112,19 @@ class Settings(BaseSettings):
     def allowed_telegram_chat_ids(self) -> set[int]:
         values = [item.strip() for item in self.telegram_allowed_chat_ids.split(",") if item.strip()]
         return {int(item) for item in values}
+
+    @property
+    def allowed_whatsapp_owner_chat_ids(self) -> set[str]:
+        values = [item.strip() for item in self.whatsapp_owner_numbers.split(",") if item.strip()]
+        owner_ids = set()
+        for value in values:
+            if value.endswith("@s.whatsapp.net"):
+                owner_ids.add(value)
+                continue
+            digits = re.sub(r"\D", "", value)
+            if digits:
+                owner_ids.add(f"{digits}@s.whatsapp.net")
+        return owner_ids
 
     @property
     def allowed_slack_channels(self) -> set[str]:

@@ -24,6 +24,7 @@ from agent_core.models import (
     ToolProposalRequest,
     ToolRevisionRequest,
     ToolReviewRequest,
+    ToolTestCasesUpdateRequest,
     ToolTestResultRequest,
 )
 from agent_core.policy import policy
@@ -33,6 +34,7 @@ from agent_core.service import AgentOrchestrator
 from agent_core.storage import store
 from agent_core.tooling import dynamic_tool_registry
 from agent_core.tooling.proposals import tool_proposals
+from agent_core.tool_sandbox import ToolSandboxUnavailable, run_tool_tests
 from agent_core.tooling.reviewer import ToolReviewUnavailable, review_tool, revise_tool, review_code_change
 from agent_core.tooling.code_changes import code_changes
 from agent_core.self_improvement import pipeline
@@ -238,6 +240,14 @@ async def local_trace_ui():
 @app.get("/command-center", response_class=HTMLResponse)
 async def command_center_ui():
     return HTMLResponse(command_center_page())
+
+
+@app.get("/tool-drafts", response_class=HTMLResponse)
+async def tool_drafts_ui():
+    built_dashboard = DASHBOARD_DIR / "index.html"
+    if built_dashboard.is_file():
+        return FileResponse(built_dashboard)
+    return HTMLResponse(dashboard_page())
 
 
 @app.get("/memory", response_class=HTMLResponse)
@@ -555,7 +565,35 @@ async def admin_mark_tool_tested(
     x_admin_api_key: str = Header(default=""),
 ):
     _verify_admin_api_key(x_admin_api_key)
-    return {"ok": True, "proposal": tool_proposals.record_test(proposal_id, payload.sha256, payload.test_count)}
+    proposal = tool_proposals.get(proposal_id)
+    if payload.test_count != len(proposal["tests"]):
+        raise HTTPException(status_code=422, detail="Test count must match the draft suite")
+    if payload.sha256 != proposal["sha256"]:
+        raise HTTPException(status_code=409, detail="Test result does not match this proposal revision")
+    try:
+        outcome = await run_tool_tests(proposal)
+    except ToolSandboxUnavailable as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    proposal = tool_proposals.record_test_run(proposal_id, payload.sha256, outcome)
+    store.append_audit("task_tool_tested", {
+        "proposal_id": proposal_id, "name": proposal["name"], "test_count": payload.test_count,
+        "passed": bool(proposal.get("test_run", {}).get("passed")), "sha256": payload.sha256,
+    })
+    return {"ok": True, "proposal": proposal}
+
+
+@app.put("/admin/tool-proposals/{proposal_id}/tests")
+async def admin_update_tool_proposal_tests(
+    proposal_id: str,
+    payload: ToolTestCasesUpdateRequest,
+    x_admin_api_key: str = Header(default=""),
+):
+    _verify_admin_api_key(x_admin_api_key)
+    proposal = tool_proposals.update_tests(proposal_id, payload.sha256, payload.tests)
+    store.append_audit("tool_draft_tests_updated", {
+        "proposal_id": proposal_id, "name": proposal["name"], "test_count": len(payload.tests),
+    })
+    return {"ok": True, "proposal": proposal}
 
 
 @app.post("/admin/tool-proposals/{proposal_id}/review")
@@ -566,6 +604,8 @@ async def admin_review_tool_proposal(
 ):
     _verify_admin_api_key(x_admin_api_key)
     proposal = tool_proposals.get(proposal_id)
+    if proposal["status"] != "tested" or proposal.get("tested_sha256") != proposal["sha256"]:
+        raise HTTPException(status_code=409, detail="Run isolated tests on this exact draft revision before review")
     if payload.sha256 != proposal["sha256"]:
         raise HTTPException(status_code=409, detail="Review does not match this proposal revision")
     review_started = time.perf_counter()

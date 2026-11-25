@@ -89,18 +89,52 @@ class ToolProposalStore:
         (self.root / f"{proposal_id}.json").unlink()
         return self.summary(proposal)
 
-    def record_test(self, proposal_id: str, digest: str, test_count: int) -> dict:
+    def update_tests(self, proposal_id: str, digest: str, tests: list[dict]) -> dict:
+        proposal = self.get(proposal_id)
+        if proposal["status"] not in {"pending", "tested"}:
+            raise HTTPException(status_code=409, detail="Only pending drafts can change test cases")
+        if digest != proposal["sha256"] or digest != self._digest(proposal):
+            raise HTTPException(status_code=409, detail="Test cases do not match this proposal revision")
+        if (
+            not isinstance(tests, list)
+            or not 1 <= len(tests) <= 10
+            or any(not isinstance(test, dict) or set(test) != {"args", "expected"} or not isinstance(test["args"], dict) for test in tests)
+        ):
+            raise HTTPException(status_code=422, detail="Provide 1-10 test cases with args and expected")
+        proposal["tests"] = tests
+        proposal["status"] = "pending"
+        for key in ("tested_at", "tested_sha256", "test_count", "test_run", "review", "reviewed_at", "reviewed_sha256"):
+            proposal.pop(key, None)
+        proposal["sha256"] = self._digest(proposal)
+        self._write(proposal)
+        return self.summary(proposal)
+
+    def record_test_run(self, proposal_id: str, digest: str, outcome: dict) -> dict:
         proposal = self.get(proposal_id)
         if proposal["status"] != "pending":
             raise HTTPException(status_code=409, detail="Only pending tool proposals can be tested")
         if digest != proposal["sha256"] or digest != self._digest(proposal):
             raise HTTPException(status_code=409, detail="Test result does not match this proposal revision")
-        if test_count != len(proposal["tests"]):
-            raise HTTPException(status_code=422, detail="All declared tests must pass before review")
-        proposal["status"] = "tested"
-        proposal["tested_at"] = datetime.now(UTC).isoformat()
-        proposal["tested_sha256"] = digest
-        proposal["test_count"] = test_count
+        results = outcome.get("results") if isinstance(outcome, dict) else None
+        passed = (
+            isinstance(results, list)
+            and len(results) == len(proposal["tests"])
+            and all(isinstance(item, dict) and item.get("passed") is True for item in results)
+            and outcome.get("passed") is True
+            and outcome.get("tests") == len(proposal["tests"])
+        )
+        proposal["test_run"] = {
+            "passed": passed,
+            "tests": len(proposal["tests"]),
+            "results": results[:10] if isinstance(results, list) else [],
+            "error": str(outcome.get("error", ""))[:400] if isinstance(outcome, dict) else "Invalid sandbox result",
+            "finished_at": datetime.now(UTC).isoformat(),
+        }
+        if passed:
+            proposal["status"] = "tested"
+            proposal["tested_at"] = proposal["test_run"]["finished_at"]
+            proposal["tested_sha256"] = digest
+            proposal["test_count"] = len(proposal["tests"])
         self._write(proposal)
         return self.summary(proposal)
 
@@ -192,7 +226,7 @@ class ToolProposalStore:
 
     @staticmethod
     def summary(proposal: dict) -> dict:
-        return {key: value for key, value in proposal.items() if key not in {"source", "tests"}}
+        return {**{key: value for key, value in proposal.items() if key not in {"source", "tests"}}, "case_count": len(proposal["tests"])}
 
     def _write(self, proposal: dict) -> None:
         path = self.root / f"{proposal['id']}.json"

@@ -108,6 +108,11 @@ class ToolTestResultRequest(BaseModel):
     test_count: int = Field(ge=1, le=10)
 
 
+class ToolTestCasesUpdateRequest(BaseModel):
+    sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    tests: list[dict] = Field(min_length=1, max_length=10)
+
+
 class ToolReviewRequest(BaseModel):
     sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     test_count: int = Field(ge=1, le=10)

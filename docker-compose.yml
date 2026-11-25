@@ -69,9 +69,40 @@ services:
       - ./.data/agent-core:/app/.data/agent-core
       - ./docs:/app/docs:ro
       - ./config:/app/config:ro
+      - tool-test-socket:/run/aria-tool-tests
     restart: unless-stopped
     depends_on:
-      - valkey
+      valkey:
+        condition: service_started
+      tool-test-runner:
+        condition: service_healthy
+
+  tool-test-runner:
+    build: ./services/tool-sandbox
+    entrypoint: ["python", "/app/server.py"]
+    environment:
+      ARIA_GID: ${ARIA_GID:-1000}
+    network_mode: none
+    read_only: true
+    user: "0:0"
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETGID, SETUID]
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - tool-test-socket:/run/aria-tool-tests
+    restart: unless-stopped
+    mem_limit: 128m
+    cpus: 0.5
+    pids_limit: 32
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m,mode=1777
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket;s=socket.socket(socket.AF_UNIX);s.connect('/run/aria-tool-tests/runner.sock');s.close()"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
 
   tool-sandbox:
     profiles: ["tool-sandbox"]
@@ -94,3 +125,4 @@ volumes:
     name: aria_valkey-data
   prometheus-data:
   grafana-data:
+  tool-test-socket:

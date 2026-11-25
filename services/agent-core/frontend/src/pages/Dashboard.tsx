@@ -27,6 +27,7 @@ const NAV = [
   { label: 'Trace', href: '/aria-trace', mark: '03' },
   { label: 'Memory', href: '/memory', mark: '04' },
   { label: 'Metrics', href: '/metrics', mark: '05' },
+  { label: 'Tool drafts', href: '/tool-drafts', mark: '06' },
 ];
 
 async function getJson<T>(url: string, key?: string): Promise<T> {
@@ -154,7 +155,7 @@ export default function Dashboard() {
         <div className="rail-label">WORKSPACE</div>
         <nav className="mission-nav" aria-label="Main navigation">
           {NAV.map((item) => (
-            <a key={item.href} className={item.href === '/dashboard' ? 'nav-item is-current' : 'nav-item'} href={item.href} aria-current={item.href === '/dashboard' ? 'page' : undefined}>
+            <a key={item.href} className={item.href === window.location.pathname ? 'nav-item is-current' : 'nav-item'} href={item.href} aria-current={item.href === window.location.pathname ? 'page' : undefined}>
               <span className="nav-mark">{item.mark}</span><span>{item.label}</span>
             </a>
           ))}
